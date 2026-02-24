@@ -129,8 +129,8 @@ final class PianoKeyViewModel {
             return
         }
 
-        statusMessage = "Open System Settings > Privacy & Security > Accessibility and enable PianoKey"
-        log(title: "Permission", detail: "Prompt requested, waiting for user grant")
+        statusMessage = "Waiting for Accessibility authorization..."
+        log(title: "Permission", detail: "Authorization requested")
 
         // Poll for a short period so UI state flips automatically right after user grants permission.
         Task {
@@ -145,6 +145,10 @@ final class PianoKeyViewModel {
                     return
                 }
             }
+
+            statusMessage = "Open System Settings > Privacy & Security > Accessibility and enable PianoKey"
+            log(title: "Permission", detail: "No grant detected, opening System Settings")
+            permissionService.openAccessibilitySettings()
         }
     }
 

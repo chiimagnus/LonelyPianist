@@ -1,23 +1,20 @@
 import AppKit
-import ApplicationServices
+import CoreGraphics
 import Foundation
 
 struct AccessibilityPermissionService: PermissionServiceProtocol {
     func hasAccessibilityPermission() -> Bool {
-        AXIsProcessTrusted()
+        CGPreflightPostEventAccess()
     }
 
     func requestAccessibilityPermission() -> Bool {
-        let options = [
-            kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: kCFBooleanTrue as Any
-        ] as CFDictionary
+        CGRequestPostEventAccess()
+    }
 
-        let trusted = AXIsProcessTrustedWithOptions(options)
-        if !trusted,
-           let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-            NSWorkspace.shared.open(url)
+    func openAccessibilitySettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else {
+            return
         }
-
-        return trusted
+        NSWorkspace.shared.open(url)
     }
 }

@@ -64,6 +64,17 @@ xcodebuild -project PianoKey.xcodeproj -scheme PianoKey -configuration Debug bui
    - `keyCombo`: `cmd+shift+k`
    - `shortcut`: `Open Notion`
 
+## 权限说明（macOS）
+
+- 本应用通过 `CGEvent` 向其他应用发送按键，必须授予 `辅助功能 (Accessibility)` 权限。
+- 点击 `Grant Permission` 后，应用会先触发系统授权请求；若短时间内未授权，会自动打开 `系统设置 > 隐私与安全性 > 辅助功能`。
+- 系统授权弹窗通常只在首次请求时出现；若你之前点过拒绝，系统可能不再弹窗，需要在设置页手动开启。
+- 若设置页中没有看到 `PianoKey`，可先重置该权限再重新运行应用：
+
+```bash
+tccutil reset Accessibility com.chiimagnus.PianoKey
+```
+
 ## 无实体琴测试
 
 可用 GarageBand 测试 MIDI 输入：
