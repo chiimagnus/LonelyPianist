@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 import OSLog
@@ -41,6 +42,8 @@ final class PianoKeyViewModel {
     private let repository: MappingProfileRepositoryProtocol
     private let mappingEngine: MappingEngineProtocol
     private let shortcutService: ShortcutServiceProtocol
+    private var permissionPollingTask: Task<Void, Never>?
+    private var appDidBecomeActiveObserver: NSObjectProtocol?
 
     init(
         midiInputService: MIDIInputServiceProtocol,
@@ -58,6 +61,7 @@ final class PianoKeyViewModel {
         self.shortcutService = shortcutService
 
         bindServiceCallbacks()
+        bindAppLifecycleCallbacks()
     }
 
     var activeProfile: MappingProfile? {
@@ -121,6 +125,9 @@ final class PianoKeyViewModel {
     }
 
     func requestAccessibilityPermission() {
+        permissionPollingTask?.cancel()
+        permissionPollingTask = nil
+
         hasAccessibilityPermission = permissionService.requestAccessibilityPermission()
 
         if hasAccessibilityPermission {
@@ -132,23 +139,40 @@ final class PianoKeyViewModel {
         statusMessage = "Waiting for Accessibility authorization..."
         log(title: "Permission", detail: "Authorization requested")
 
-        // Poll for a short period so UI state flips automatically right after user grants permission.
-        Task {
-            for _ in 0..<12 {
+        // Poll for up to 60s so granting in System Settings updates immediately without app restart.
+        permissionPollingTask = Task { [weak self] in
+            guard let self else { return }
+            var openedSettings = false
+
+            for attempt in 0..<120 {
                 try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled else { return }
+
                 let granted = permissionService.hasAccessibilityPermission()
                 hasAccessibilityPermission = granted
 
                 if granted {
                     statusMessage = "Accessibility enabled"
                     log(title: "Permission", detail: "Accessibility granted")
+                    permissionPollingTask = nil
                     return
+                }
+
+                if !openedSettings, attempt == 11 {
+                    statusMessage = "Open System Settings > Privacy & Security > Accessibility and enable PianoKey"
+                    log(title: "Permission", detail: "No grant detected, opening System Settings")
+                    permissionService.openAccessibilitySettings()
+                    openedSettings = true
                 }
             }
 
-            statusMessage = "Open System Settings > Privacy & Security > Accessibility and enable PianoKey"
-            log(title: "Permission", detail: "No grant detected, opening System Settings")
-            permissionService.openAccessibilitySettings()
+            if !openedSettings {
+                statusMessage = "Open System Settings > Privacy & Security > Accessibility and enable PianoKey"
+                log(title: "Permission", detail: "No grant detected, opening System Settings")
+                permissionService.openAccessibilitySettings()
+            }
+
+            permissionPollingTask = nil
         }
     }
 
@@ -333,6 +357,31 @@ final class PianoKeyViewModel {
                 self?.handleMIDIEvent(event)
             }
         }
+    }
+
+    private func bindAppLifecycleCallbacks() {
+        appDidBecomeActiveObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.refreshAccessibilityPermissionAfterAppActivation()
+            }
+        }
+    }
+
+    private func refreshAccessibilityPermissionAfterAppActivation() {
+        let granted = permissionService.hasAccessibilityPermission()
+        let hadPermission = hasAccessibilityPermission
+        hasAccessibilityPermission = granted
+
+        guard granted, !hadPermission else { return }
+
+        permissionPollingTask?.cancel()
+        permissionPollingTask = nil
+        statusMessage = "Accessibility enabled"
+        log(title: "Permission", detail: "Accessibility granted")
     }
 
     private func handleMIDIEvent(_ event: MIDIEvent) {

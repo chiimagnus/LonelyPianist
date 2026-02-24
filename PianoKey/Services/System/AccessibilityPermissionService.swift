@@ -1,14 +1,19 @@
 import AppKit
-import CoreGraphics
+import ApplicationServices
 import Foundation
 
 struct AccessibilityPermissionService: PermissionServiceProtocol {
     func hasAccessibilityPermission() -> Bool {
-        CGPreflightPostEventAccess()
+        AXIsProcessTrusted() || CGPreflightPostEventAccess()
     }
 
     func requestAccessibilityPermission() -> Bool {
-        CGRequestPostEventAccess()
+        let options = [
+            kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: kCFBooleanTrue as Any
+        ] as CFDictionary
+        let axGranted = AXIsProcessTrustedWithOptions(options)
+        let cgGranted = CGRequestPostEventAccess()
+        return axGranted || cgGranted
     }
 
     func openAccessibilitySettings() {
