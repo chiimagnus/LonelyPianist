@@ -1,102 +1,80 @@
 # PianoKey — 用钢琴弹出代码
 
-*一个把 MIDI 钢琴键盘变成 Mac 输入设备的 macOS app。边打字，边摸琴。*
+一个把 MIDI 键盘变成 macOS 输入设备的菜单栏应用。
 
----
+## 已实现功能
 
-## 技术栈
+### MVP
+- [x] 连接 MIDI 键盘并监听琴键输入（CoreMIDI，自动监听所有 Source）
+- [x] 琴键 -> 字符的单键映射
+- [x] 发送键盘输入到其他应用（CGEvent）
+- [x] 在控制面板显示映射、运行状态、输入预览、最近事件
 
-- **Swift + SwiftUI**
-- **CoreMIDI** — 监听 MIDI 输入
-- **CGEvent** — 模拟键盘按键
-- 无第三方依赖
-
----
-
-## MVP — 先跑起来
-
-- [ ]  连接 MIDI 键盘，监听琴键输入
-- [ ]  琴键 → 字母/数字/符号的**单键映射**
-- [ ]  模拟键盘事件，能在任意 app 里正常打字
-- [ ]  屏幕上显示当前映射关系（哪个琴键对应哪个字符）
-
-## 扩展 — 跑通再加
-
-- [ ]  **和弦 → 组合快捷键**（如 C大三和弦 = Cmd+C）
-- [ ]  **旋律片段 → 触发快捷操作 / Shortcuts**
-- [ ]  **力度感应** — 轻按重按触发不同效果
-- [ ]  自定义映射配置（可保存 / 切换方案）
-
----
+### 扩展
+- [x] 和弦 -> 组合键（如 `cmd+c`）
+- [x] 旋律 -> 文本 / 组合键 / Shortcuts
+- [x] 力度分层（阈值以上可输出另一组字符）
+- [x] 自定义映射配置（新增/删除/切换/编辑，SwiftData 持久化）
 
 ## UI 形态
 
-**菜单栏 app + 小浮窗**，不占整个窗口。
+- 菜单栏入口（`MenuBarExtra`）
+- 控制面板浮窗（规则编辑 + 运行状态）
+- 简洁分区：Runtime / Profiles / Single Key Map / Rules / Recent Events
 
-- 平时缩在菜单栏，图标显示 MIDI 连接状态（绿点/灰点）
-- 点击菜单栏图标弹出浮窗，显示：
-    - 琴键映射可视化（音名 + 对应字符，按下时高亮）
-    - 实时输入预览
-    - 最近按下的琴键、映射结果、力度值
-    - 映射方案切换（默认 QWERTY / 自定义）
+## 技术栈
 
+- Swift + SwiftUI
+- CoreMIDI
+- CGEvent
+- SwiftData
+- Observation (`@Observable`)
+- 无第三方依赖
+
+## 架构
+
+- MVVM：`ViewModels / Views / Models / Services`
+- 面向协议：服务层全部通过协议注入
+- 映射引擎独立：单键 / 和弦 / 旋律 / 力度逻辑统一在 `DefaultMappingEngine`
+
+## 快速开始
+
+1. 打开 `PianoKey.xcodeproj`
+2. 运行 `PianoKey` target
+3. 首次启动后在菜单栏打开应用
+4. 若要发送按键，需在系统里授予辅助功能权限
+
+命令行构建：
+
+```bash
+xcodebuild -project PianoKey.xcodeproj -scheme PianoKey -configuration Debug build
 ```
-┌─────────────────────────────────────────────────┐
-│  🎹 PianoKey                          ● 已连接  │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐     │
-│  │ C │ D │ E │ F │ G │ A │ B │ C │ D │ E │ ... │
-│  │ a │ b │ c │ d │ e │ f │ g │ h │ i │ j │     │
-│  └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘     │
-│                                                 │
-│  当前输入：hello world_                          │
-│                                                 │
-├─────────────────────────────────────────────────┤
-│  映射方案：[ 默认 QWERTY ▼ ]                     │
-│                                                 │
-│  ⌨️ 单键映射    🎵 和弦快捷键    🎶 旋律触发     │
-├─────────────────────────────────────────────────┤
-│  最近按下：C4 → 'a'                    力度: 72  │
-└─────────────────────────────────────────────────┘
-```
 
----
+## 使用说明
 
-## 不做
+1. 菜单栏面板点击 `Start Listening`
+2. 打开 `Control Panel`
+3. 在 `Profiles` 里切换或创建配置
+4. 在 `Rules` 里编辑：
+   - `Single Key`: 音符、普通输出、高力度输出、阈值
+   - `Chord`: 音符序列 + 动作类型 + 动作值
+   - `Melody`: 音符序列 + 时间窗口 + 动作类型 + 动作值
+5. 动作值示例：
+   - `text`: `hello `
+   - `keyCombo`: `cmd+shift+k`
+   - `shortcut`: `Open Notion`
 
-- 不做练琴功能（那是另一个 app）
-- 不做 Web 版
-- ~~不上架（纯自己玩）~~ → **上架 Mac App Store**
+## 无实体琴测试
 
----
+可用 GarageBand 测试 MIDI 输入：
 
-## 灵感
+1. 打开 GarageBand
+2. `窗口 -> 显示音乐打字键盘`
+3. 运行 PianoKey 并开始监听
+4. 用 GarageBand 键盘触发 MIDI 事件
 
-- 弹《致爱丽丝》开头四个音 → 打开 Notion
-- C调 = 代码环境，D小调 = 摸鱼模式
-- 弹错音 = 自动撤销（Cmd+Z）😂
-- 连续弹对一段旋律 = 解锁摸鱼时间
+## 已知限制
 
----
-
-## 开发测试（无实体琴）
-
-不需要接真琴也能测试。用**库乐队（GarageBand）**的音乐打字键盘即可：
-
-1. 打开库乐队
-2. `窗口 → 显示音乐打字键盘`
-3. 跑 PianoKey app，用 CoreMIDI 监听所有 MIDI Source
-4. 选择库乐队作为输入源
-5. 按键 → app 收到 MIDI 事件 → 完事
-
-> 不需要 IAC Driver，不需要额外配置。库乐队会直接把 MIDI 事件暴露给系统，CoreMIDI 监听所有可用 Source 就能收到。
-> 
-
----
-
-## 参考项目
-
-- [midiStroke](https://github.com/charlieroberts/midiStroke/) — macOS 原生，MIT 开源，MIDI → 键盘按键
-- [MIKMIDI](https://github.com/mixedinkey-opensource/MIKMIDI) — Swift/ObjC MIDI 库
-- [midi-to-keypress (Python)](https://github.com/aashnakunk/midi-to-keypress) — 支持和弦触发，代码简洁可参考逻辑
+- 需要授予辅助功能权限后，键盘注入才会生效。
+- `shortcut` 动作依赖系统中已存在同名快捷指令。
+- 在受限输入场景（安全输入/部分沙盒上下文）下，按键注入可能被系统拦截。
