@@ -42,6 +42,7 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
         try refreshSources()
 
         isRunning = true
+        logger.info("MIDI listening started")
     }
 
     func stop() {
@@ -59,6 +60,7 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
 
         isRunning = false
         onConnectionStateChange?(.idle)
+        logger.info("MIDI listening stopped")
     }
 
     func refreshSources() throws {
@@ -91,10 +93,12 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
                 throw MIDIInputServiceError.sourceRefresh(failedStatus)
             }
             onConnectionStateChange?(.connected(sourceCount: 0))
+            logger.info("MIDI source refresh finished with zero connected source")
             return
         }
 
         onConnectionStateChange?(.connected(sourceCount: connectedSources.count))
+        logger.info("MIDI connected source count: \(self.connectedSources.count, privacy: .public)")
     }
 
     private func createClientIfNeeded() throws {

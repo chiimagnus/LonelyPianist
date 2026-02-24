@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import OSLog
 
 enum ShortcutServiceError: LocalizedError {
     case invalidName
@@ -16,6 +17,8 @@ enum ShortcutServiceError: LocalizedError {
 }
 
 struct ShortcutExecutionService: ShortcutServiceProtocol {
+    private let logger = Logger(subsystem: "com.chiimagnus.PianoKey", category: "Shortcut")
+
     func runShortcut(named name: String) throws {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
@@ -31,5 +34,7 @@ struct ShortcutExecutionService: ShortcutServiceProtocol {
         guard success else {
             throw ShortcutServiceError.openFailed
         }
+
+        logger.info("Triggered shortcut: \(trimmed, privacy: .public)")
     }
 }

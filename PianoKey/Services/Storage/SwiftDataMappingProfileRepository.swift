@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import SwiftData
 
 @MainActor
@@ -6,6 +7,7 @@ final class SwiftDataMappingProfileRepository: MappingProfileRepositoryProtocol 
     private let context: ModelContext
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
+    private let logger = Logger(subsystem: "com.chiimagnus.PianoKey", category: "Repository")
 
     init(context: ModelContext) {
         self.context = context
@@ -31,6 +33,7 @@ final class SwiftDataMappingProfileRepository: MappingProfileRepositoryProtocol 
         }
 
         try context.save()
+        logger.info("Seeded default mapping profiles")
     }
 
     func fetchProfiles() throws -> [MappingProfile] {
@@ -42,6 +45,7 @@ final class SwiftDataMappingProfileRepository: MappingProfileRepositoryProtocol 
                 }
                 return lhs.updatedAt > rhs.updatedAt
             }
+        logger.debug("Fetched profiles count: \(entities.count, privacy: .public)")
         return try entities.map(makeDomain)
     }
 
@@ -58,6 +62,7 @@ final class SwiftDataMappingProfileRepository: MappingProfileRepositoryProtocol 
         }
 
         try context.save()
+        logger.info("Saved profile: \(profile.name, privacy: .public)")
     }
 
     func deleteProfile(id: UUID) throws {
@@ -66,6 +71,7 @@ final class SwiftDataMappingProfileRepository: MappingProfileRepositoryProtocol 
         let wasActive = entity.isActive
         context.delete(entity)
         try context.save()
+        logger.info("Deleted profile id: \(id.uuidString, privacy: .public)")
 
         if wasActive {
             try activateMostRecentlyUpdatedProfile()
@@ -85,6 +91,7 @@ final class SwiftDataMappingProfileRepository: MappingProfileRepositoryProtocol 
         }
 
         try context.save()
+        logger.info("Activated profile id: \(id.uuidString, privacy: .public)")
     }
 
     private func activateMostRecentlyUpdatedProfile() throws {
