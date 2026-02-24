@@ -23,6 +23,8 @@ final class PianoKeyViewModel {
 
     var isListening = false
     var connectionState: MIDIInputConnectionState = .idle
+    var connectedSourceNames: [String] = []
+    var midiEventCount = 0
     var hasAccessibilityPermission = false
     var statusMessage = "Ready"
 
@@ -120,6 +122,7 @@ final class PianoKeyViewModel {
         midiInputService.stop()
         mappingEngine.reset()
         isListening = false
+        midiEventCount = 0
         pressedNotes.removeAll(keepingCapacity: false)
         statusMessage = "Stopped"
     }
@@ -357,6 +360,12 @@ final class PianoKeyViewModel {
                 self?.handleMIDIEvent(event)
             }
         }
+
+        midiInputService.onSourceNamesChange = { [weak self] names in
+            Task { @MainActor [weak self] in
+                self?.connectedSourceNames = names
+            }
+        }
     }
 
     private func bindAppLifecycleCallbacks() {
@@ -385,6 +394,7 @@ final class PianoKeyViewModel {
     }
 
     private func handleMIDIEvent(_ event: MIDIEvent) {
+        midiEventCount += 1
         updatePressedNotes(for: event)
 
         guard let activeProfile else { return }

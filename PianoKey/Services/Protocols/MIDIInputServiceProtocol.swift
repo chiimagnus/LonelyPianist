@@ -9,6 +9,7 @@ enum MIDIInputConnectionState: Equatable {
 protocol MIDIInputServiceProtocol: AnyObject {
     var onEvent: (@Sendable (MIDIEvent) -> Void)? { get set }
     var onConnectionStateChange: (@Sendable (MIDIInputConnectionState) -> Void)? { get set }
+    var onSourceNamesChange: (@Sendable ([String]) -> Void)? { get set }
 
     func start() throws
     func stop()

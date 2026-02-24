@@ -22,6 +22,7 @@ enum MIDIInputServiceError: LocalizedError {
 final class CoreMIDIInputService: MIDIInputServiceProtocol {
     var onEvent: (@Sendable (MIDIEvent) -> Void)?
     var onConnectionStateChange: (@Sendable (MIDIInputConnectionState) -> Void)?
+    var onSourceNamesChange: (@Sendable ([String]) -> Void)?
 
     private let logger = Logger(subsystem: "com.chiimagnus.PianoKey", category: "CoreMIDI")
 
@@ -88,6 +89,7 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
         }
 
         if connectedSources.isEmpty {
+            onSourceNamesChange?([])
             if let failedStatus {
                 onConnectionStateChange?(.failed("No MIDI source connected (status: \(failedStatus))"))
                 throw MIDIInputServiceError.sourceRefresh(failedStatus)
@@ -96,6 +98,9 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
             logger.info("MIDI source refresh finished with zero connected source")
             return
         }
+
+        let sourceNames = connectedSources.map(endpointName)
+        onSourceNamesChange?(sourceNames)
 
         onConnectionStateChange?(.connected(sourceCount: connectedSources.count))
         logger.info("MIDI connected source count: \(self.connectedSources.count, privacy: .public)")
@@ -140,6 +145,23 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
             MIDIPortDisconnectSource(inputPortRef, source)
         }
         connectedSources.removeAll(keepingCapacity: false)
+        onSourceNamesChange?([])
+    }
+
+    private func endpointName(_ endpoint: MIDIEndpointRef) -> String {
+        var displayName: Unmanaged<CFString>?
+        let displayStatus = MIDIObjectGetStringProperty(endpoint, kMIDIPropertyDisplayName, &displayName)
+        if displayStatus == noErr, let displayName {
+            return displayName.takeRetainedValue() as String
+        }
+
+        var name: Unmanaged<CFString>?
+        let nameStatus = MIDIObjectGetStringProperty(endpoint, kMIDIPropertyName, &name)
+        if nameStatus == noErr, let name {
+            return name.takeRetainedValue() as String
+        }
+
+        return "Unknown MIDI Source"
     }
 
     fileprivate func handlePacketList(_ packetList: UnsafePointer<MIDIPacketList>) {

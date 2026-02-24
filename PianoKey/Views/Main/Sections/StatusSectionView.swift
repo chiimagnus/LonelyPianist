@@ -37,6 +37,8 @@ struct StatusSectionView: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Status: \(viewModel.statusMessage)")
+                    Text("Sources: \(sourceNamesText)")
+                    Text("MIDI Events: \(viewModel.midiEventCount)")
                     Text("Pressed: \(pressedNotesText)")
                     Text("Preview: \(viewModel.previewText)")
                         .lineLimit(2)
@@ -52,5 +54,10 @@ struct StatusSectionView: View {
     private var pressedNotesText: String {
         guard !viewModel.pressedNotes.isEmpty else { return "-" }
         return viewModel.pressedNotes.map { MIDINote($0).name }.joined(separator: " ")
+    }
+
+    private var sourceNamesText: String {
+        guard !viewModel.connectedSourceNames.isEmpty else { return "-" }
+        return viewModel.connectedSourceNames.joined(separator: ", ")
     }
 }
