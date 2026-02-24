@@ -122,7 +122,30 @@ final class PianoKeyViewModel {
 
     func requestAccessibilityPermission() {
         hasAccessibilityPermission = permissionService.requestAccessibilityPermission()
-        statusMessage = hasAccessibilityPermission ? "Accessibility enabled" : "Grant permission in System Settings"
+
+        if hasAccessibilityPermission {
+            statusMessage = "Accessibility enabled"
+            log(title: "Permission", detail: "Accessibility granted")
+            return
+        }
+
+        statusMessage = "Open System Settings > Privacy & Security > Accessibility and enable PianoKey"
+        log(title: "Permission", detail: "Prompt requested, waiting for user grant")
+
+        // Poll for a short period so UI state flips automatically right after user grants permission.
+        Task {
+            for _ in 0..<12 {
+                try? await Task.sleep(for: .milliseconds(500))
+                let granted = permissionService.hasAccessibilityPermission()
+                hasAccessibilityPermission = granted
+
+                if granted {
+                    statusMessage = "Accessibility enabled"
+                    log(title: "Permission", detail: "Accessibility granted")
+                    return
+                }
+            }
+        }
     }
 
     func refreshMIDISources() {

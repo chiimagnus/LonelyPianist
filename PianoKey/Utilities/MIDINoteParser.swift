@@ -1,7 +1,7 @@
 import Foundation
 
 enum MIDINoteParser {
-    static func parseNotes(_ rawValue: String) -> [Int] {
+    nonisolated static func parseNotes(_ rawValue: String) -> [Int] {
         let tokens = rawValue
             .replacingOccurrences(of: ",", with: " ")
             .split(whereSeparator: { $0.isWhitespace })
@@ -10,7 +10,7 @@ enum MIDINoteParser {
         return tokens.compactMap(parseNote)
     }
 
-    static func parseNote(_ rawValue: String) -> Int? {
+    nonisolated static func parseNote(_ rawValue: String) -> Int? {
         let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
 
@@ -59,7 +59,15 @@ enum MIDINoteParser {
         return midi
     }
 
-    static func stringify(notes: [Int], separator: String = " ") -> String {
-        notes.map { MIDINote($0).name }.joined(separator: separator)
+    nonisolated static func stringify(notes: [Int], separator: String = " ") -> String {
+        notes.map(noteName(for:)).joined(separator: separator)
+    }
+
+    nonisolated private static func noteName(for note: Int) -> String {
+        let clamped = max(0, min(127, note))
+        let noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+        let pitchClass = clamped % 12
+        let octave = (clamped / 12) - 1
+        return "\(noteNames[pitchClass])\(octave)"
     }
 }
