@@ -30,6 +30,7 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
     private var inputPortRef: MIDIPortRef = 0
     private var connectedSources: [MIDIEndpointRef] = []
     private var isRunning = false
+    private var didLogNonNoteMessage = false
 
     deinit {
         stop()
@@ -125,14 +126,14 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
     private func createInputPortIfNeeded() throws {
         guard inputPortRef == 0 else { return }
 
-        let context = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
-        let status = MIDIInputPortCreate(
+        let status = MIDIInputPortCreateWithProtocol(
             clientRef,
             "PianoKeyMIDIInput" as CFString,
-            midiReadProc,
-            context,
+            MIDIProtocolID._1_0,
             &inputPortRef
-        )
+        ) { [weak self] eventList, _ in
+            self?.handleEventList(eventList)
+        }
 
         guard status == noErr else {
             onConnectionStateChange?(.failed("Create MIDI input port failed: \(status)"))
@@ -145,6 +146,7 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
             MIDIPortDisconnectSource(inputPortRef, source)
         }
         connectedSources.removeAll(keepingCapacity: false)
+        didLogNonNoteMessage = false
         onSourceNamesChange?([])
     }
 
@@ -164,78 +166,77 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
         return "Unknown MIDI Source"
     }
 
-    fileprivate func handlePacketList(_ packetList: UnsafePointer<MIDIPacketList>) {
-        withUnsafePointer(to: packetList.pointee.packet) { firstPacket in
-            var packetPointer = firstPacket
+    private func handleEventList(_ eventList: UnsafePointer<MIDIEventList>) {
+        let context = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
+        MIDIEventListForEachEvent(eventList, midiEventVisitor, context)
+    }
 
-            for _ in 0..<packetList.pointee.numPackets {
-                let packet = packetPointer.pointee
-                let length = Int(packet.length)
-
-                if length > 0 {
-                    withUnsafeBytes(of: packet.data) { rawBuffer in
-                        let bytes = rawBuffer.prefix(length)
-                        parseMIDIBytes(Array(bytes))
-                    }
+    fileprivate func handleUniversalMessage(
+        _ message: MIDIUniversalMessage,
+        timeStamp: MIDITimeStamp
+    ) {
+        switch message.type {
+        case .channelVoice1:
+            let status = message.channelVoice1.status
+            guard status == .noteOn || status == .noteOff else {
+                if !didLogNonNoteMessage {
+                    logger.info("Receiving MIDI data, but no note-on/off yet")
+                    didLogNonNoteMessage = true
                 }
-
-                packetPointer = UnsafePointer(MIDIPacketNext(packetPointer))
+                return
             }
+
+            let note = Int(message.channelVoice1.note.number)
+            let velocity = Int(message.channelVoice1.note.velocity)
+            let channel = Int(message.channelVoice1.channel) + 1
+            let eventType: MIDIEvent.EventType = (status == .noteOn && velocity > 0) ? .noteOn : .noteOff
+            emitEvent(type: eventType, note: note, velocity: velocity, channel: channel)
+
+        case .channelVoice2:
+            let status = message.channelVoice2.status
+            guard status == .noteOn || status == .noteOff else {
+                if !didLogNonNoteMessage {
+                    logger.info("Receiving MIDI 2.0 data, but no note-on/off yet")
+                    didLogNonNoteMessage = true
+                }
+                return
+            }
+
+            let note = Int(message.channelVoice2.note.number)
+            let velocity16 = Int(message.channelVoice2.note.velocity)
+            let velocity = Int((Double(velocity16) / 65535.0) * 127.0)
+            let channel = Int(message.channelVoice2.channel) + 1
+            let eventType: MIDIEvent.EventType = (status == .noteOn && velocity16 > 0) ? .noteOn : .noteOff
+            emitEvent(type: eventType, note: note, velocity: velocity, channel: channel)
+
+        default:
+            break
         }
     }
 
-    private func parseMIDIBytes(_ bytes: [UInt8]) {
-        guard !bytes.isEmpty else { return }
-
-        var index = 0
-        while index < bytes.count {
-            let status = bytes[index]
-
-            if status < 0x80 {
-                index += 1
-                continue
-            }
-
-            let command = status & 0xF0
-            let channel = Int(status & 0x0F) + 1
-
-            switch command {
-            case 0x80, 0x90:
-                guard index + 2 < bytes.count else {
-                    index = bytes.count
-                    continue
-                }
-
-                let note = Int(bytes[index + 1])
-                let velocity = Int(bytes[index + 2])
-                let eventType: MIDIEvent.EventType = (command == 0x90 && velocity > 0) ? .noteOn : .noteOff
-
-                let event = MIDIEvent(
-                    type: eventType,
-                    note: note,
-                    velocity: velocity,
-                    channel: channel,
-                    timestamp: Date()
-                )
-
-                onEvent?(event)
-                index += 3
-            case 0xC0, 0xD0:
-                index += 2
-            default:
-                index += 3
-            }
-        }
+    private func emitEvent(
+        type: MIDIEvent.EventType,
+        note: Int,
+        velocity: Int,
+        channel: Int
+    ) {
+        let event = MIDIEvent(
+            type: type,
+            note: max(0, min(127, note)),
+            velocity: max(0, min(127, velocity)),
+            channel: max(1, channel),
+            timestamp: Date()
+        )
+        onEvent?(event)
     }
 }
 
-private func midiReadProc(
-    packetList: UnsafePointer<MIDIPacketList>,
-    readProcRefCon: UnsafeMutableRawPointer?,
-    srcConnRefCon: UnsafeMutableRawPointer?
+private func midiEventVisitor(
+    context: UnsafeMutableRawPointer?,
+    timeStamp: MIDITimeStamp,
+    message: MIDIUniversalMessage
 ) {
-    guard let readProcRefCon else { return }
-
-    let service = Unmanaged<CoreMIDIInputService>.fromOpaque(readProcRefCon).takeUnretainedValue()
-    service.handlePacketList(packetList)
+    guard let context else { return }
+    let service = Unmanaged<CoreMIDIInputService>.fromOpaque(context).takeUnretainedValue()
+    service.handleUniversalMessage(message, timeStamp: timeStamp)
 }
