@@ -14,6 +14,12 @@ final class PianoKeyViewModel {
         var id: String { rawValue }
     }
 
+    enum RecorderMode: Equatable {
+        case idle
+        case recording
+        case playing
+    }
+
     struct EventLogItem: Identifiable {
         let id = UUID()
         let timestamp: Date
@@ -32,6 +38,7 @@ final class PianoKeyViewModel {
     var activeProfileID: UUID?
 
     var selectedTab: EditorTab = .singleKey
+    var recorderMode: RecorderMode = .idle
     var previewText = ""
     var pressedNotes: [Int] = []
     var recentLogs: [EventLogItem] = []
