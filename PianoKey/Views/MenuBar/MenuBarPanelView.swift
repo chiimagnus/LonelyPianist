@@ -69,13 +69,13 @@ struct MenuBarPanelView: View {
             Divider()
 
             Button("Open PianoKey") {
-                NSApp.activate(ignoringOtherApps: true)
+                DockPresenceService.showDockIcon()
                 openWindow(id: "main")
             }
             .buttonStyle(.bordered)
 
             Button("Quit PianoKey") {
-                NSApp.terminate(nil)
+                NSApplication.shared.terminate(nil)
             }
             .buttonStyle(.bordered)
         }

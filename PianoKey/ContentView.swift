@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MainWindowView: View {
     @Bindable var viewModel: PianoKeyViewModel
+    @State private var lifecycleService = MainWindowLifecycleService()
 
     var body: some View {
         NavigationSplitView {
@@ -29,6 +30,13 @@ struct MainWindowView: View {
                     .navigationTitle("Recorder")
             }
         }
+        .background(
+            WindowAccessor { window in
+                window.delegate = lifecycleService
+                window.standardWindowButton(.zoomButton)?.isEnabled = false
+                window.collectionBehavior.insert(.fullScreenNone)
+            }
+        )
     }
 
     private var sidebarSelection: Binding<PianoKeyViewModel.MainWindowSection?> {
@@ -41,4 +49,3 @@ struct MainWindowView: View {
         )
     }
 }
-

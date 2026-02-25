@@ -1,3 +1,4 @@
+import AppKit
 import SwiftData
 import SwiftUI
 
@@ -8,6 +9,8 @@ struct PianoKeyApp: App {
     @State private var viewModel: PianoKeyViewModel
 
     init() {
+        DockPresenceService.hideDockIcon()
+
         let schema = Schema([
             MappingProfileEntity.self,
             RecordingTakeEntity.self,
