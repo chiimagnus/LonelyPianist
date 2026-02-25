@@ -1,91 +1,64 @@
-# PianoKey — 用钢琴弹出代码
+# PianoKey
 
-一个把 MIDI 键盘变成 macOS 输入设备的菜单栏应用。
+用 MIDI 键盘控制 Mac 输入的菜单栏应用。
 
-## 已实现功能
+## 你可以做什么
 
-### MVP
-- [x] 连接 MIDI 键盘并监听琴键输入（CoreMIDI，自动监听所有 Source）
-- [x] 琴键 -> 字符的单键映射
-- [x] 发送键盘输入到其他应用（CGEvent）
-- [x] 在控制面板显示映射、运行状态、输入预览、最近事件
+- 把单个音符映射成文本输入
+- 用和弦触发组合键（如 `cmd+c`）
+- 用旋律触发文本、组合键或快捷指令
+- 用力度阈值区分不同输出
+- 保存多套 Profile，随时切换
 
-### 扩展
-- [x] 和弦 -> 组合键（如 `cmd+c`）
-- [x] 旋律 -> 文本 / 组合键 / Shortcuts
-- [x] 力度分层（阈值以上可输出另一组字符）
-- [x] 自定义映射配置（新增/删除/切换/编辑，SwiftData 持久化）
+## 快速上手
 
-## UI 形态
+1. 启动 PianoKey。
+2. 在菜单栏打开应用面板。
+3. 点击 `Grant Permission` 完成辅助功能授权（首次必做）。
+4. 点击 `Start Listening` 开始监听 MIDI。
+5. 打开 `Control Panel`，在 `Profiles / Rules` 中设置你的映射。
+6. 回到任意可输入文本的应用，弹琴验证输出。
 
-- 菜单栏入口（`MenuBarExtra`）
-- 控制面板浮窗（规则编辑 + 运行状态）
-- 简洁分区：Runtime / Profiles / Single Key Map / Rules / Recent Events
+## 权限说明（必须）
 
-## 技术栈
+PianoKey 通过系统输入注入发送按键，必须开启 macOS 的 `辅助功能 (Accessibility)` 权限。
 
-- Swift + SwiftUI
-- CoreMIDI
-- CGEvent
-- SwiftData
-- Observation (`@Observable`)
-- 无第三方依赖
+- 点击 `Grant Permission` 后，会触发系统授权请求。
+- 如果没有看到弹窗，应用会引导你打开：
+  `系统设置 > 隐私与安全性 > 辅助功能`
+- 在列表里勾选 `PianoKey` 后，返回应用即可生效。
 
-## 架构
+## 常见问题
 
-- MVVM：`ViewModels / Views / Models / Services`
-- 面向协议：服务层全部通过协议注入
-- 映射引擎独立：单键 / 和弦 / 旋律 / 力度逻辑统一在 `DefaultMappingEngine`
+### 1) 点击授权后没有弹窗
 
-## 快速开始
+这是 macOS 常见行为：如果你之前拒绝过，系统可能不再重复弹窗。请直接去系统设置手动勾选 `PianoKey`。
 
-1. 打开 `PianoKey.xcodeproj`
-2. 运行 `PianoKey` target
-3. 首次启动后在菜单栏打开应用
-4. 若要发送按键，需在系统里授予辅助功能权限
+### 2) 状态一直是 `Waiting for Accessibility authorization...`
 
-命令行构建：
+通常是系统权限刚变更但应用还在等待刷新。现在应用会自动轮询状态；若仍未更新，切回应用窗口或重新点击一次 `Grant Permission`。
 
-```bash
-xcodebuild -project PianoKey.xcodeproj -scheme PianoKey -configuration Debug build
-```
+### 3) 显示 `Listening MIDI` 但 `MIDI Events: 0`
 
-## 使用说明
+请按顺序检查：
 
-1. 菜单栏面板点击 `Start Listening`
-2. 打开 `Control Panel`
-3. 在 `Profiles` 里切换或创建配置
-4. 在 `Rules` 里编辑：
-   - `Single Key`: 音符、普通输出、高力度输出、阈值
-   - `Chord`: 音符序列 + 动作类型 + 动作值
-   - `Melody`: 音符序列 + 时间窗口 + 动作类型 + 动作值
-5. 动作值示例：
-   - `text`: `hello `
-   - `keyCombo`: `cmd+shift+k`
-   - `shortcut`: `Open Notion`
+1. `Sources` 是否为空；为空时先点 `Refresh Sources`。
+2. MIDI 设备或虚拟总线（如 IAC）是否在线。
+3. 你的测试软件是否真的在输出 `note on/off` 事件。
 
-## 权限说明（macOS）
+### 4) 有 MIDI 事件，但目标应用没有输入
 
-- 本应用通过 `CGEvent` 向其他应用发送按键，必须授予 `辅助功能 (Accessibility)` 权限。
-- 点击 `Grant Permission` 后，应用会先触发系统授权请求；若短时间内未授权，会自动打开 `系统设置 > 隐私与安全性 > 辅助功能`。
-- 系统授权弹窗通常只在首次请求时出现；若你之前点过拒绝，系统可能不再弹窗，需要在设置页手动开启。
-- 若设置页中没有看到 `PianoKey`，可先重置该权限再重新运行应用：
+通常是辅助功能权限未正确生效，或目标应用处于受限输入场景（安全输入等）。先确认权限，再换普通文本输入框测试。
 
-```bash
-tccutil reset Accessibility com.chiimagnus.PianoKey
-```
+## 无实体琴测试（GarageBand + IAC）
 
-## 无实体琴测试
-
-可用 GarageBand 测试 MIDI 输入：
-
-1. 打开 GarageBand
-2. `窗口 -> 显示音乐打字键盘`
-3. 运行 PianoKey 并开始监听
-4. 用 GarageBand 键盘触发 MIDI 事件
+1. 在 `音频 MIDI 设置` 里启用 IAC Driver。
+2. 在 GarageBand 将 MIDI 输出路由到 IAC。
+3. 在 PianoKey 开始监听并确认 `Sources` 出现 IAC。
+4. 触发音符后观察 `MIDI Events`、`Pressed`、`Preview` 是否变化。
 
 ## 已知限制
 
-- 需要授予辅助功能权限后，键盘注入才会生效。
-- `shortcut` 动作依赖系统中已存在同名快捷指令。
-- 在受限输入场景（安全输入/部分沙盒上下文）下，按键注入可能被系统拦截。
+- 必须授予辅助功能权限后，跨应用输入才会生效。
+- `shortcut` 动作依赖系统中已存在的同名快捷指令。
+- 在部分系统受限输入场景下，事件可能被拦截。
