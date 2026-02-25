@@ -38,7 +38,43 @@ struct MenuBarPanelView: View {
 
             Divider()
 
+            HStack(spacing: 8) {
+                Button {
+                    viewModel.startRecordingTake()
+                } label: {
+                    Label("Rec", systemImage: "record.circle")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+                .disabled(!viewModel.canRecord)
+
+                Button {
+                    viewModel.playSelectedTake()
+                } label: {
+                    Label("Play", systemImage: "play.fill")
+                }
+                .buttonStyle(.bordered)
+                .disabled(!viewModel.canPlay)
+
+                Button {
+                    viewModel.stopTransport()
+                } label: {
+                    Label("Stop", systemImage: "stop.fill")
+                }
+                .buttonStyle(.bordered)
+                .disabled(!viewModel.canStop)
+            }
+
+            Divider()
+
             Button("Open Control Panel") {
+                viewModel.showMappingsPanel()
+                openWindow(id: "control-panel")
+            }
+            .buttonStyle(.bordered)
+
+            Button("Open Recorder") {
+                viewModel.showRecorderPanel()
                 openWindow(id: "control-panel")
             }
             .buttonStyle(.bordered)

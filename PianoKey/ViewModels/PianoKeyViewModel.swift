@@ -235,6 +235,14 @@ final class PianoKeyViewModel {
         }
     }
 
+    func showMappingsPanel() {
+        selectedMainPanelTab = .mappings
+    }
+
+    func showRecorderPanel() {
+        selectedMainPanelTab = .recorder
+    }
+
     func startRecordingTake() {
         guard canRecord else { return }
 
