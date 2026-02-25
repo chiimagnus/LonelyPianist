@@ -39,6 +39,10 @@ final class PianoKeyViewModel {
 
     var selectedTab: EditorTab = .singleKey
     var recorderMode: RecorderMode = .idle
+    var takes: [RecordingTake] = []
+    var selectedTakeID: UUID?
+    var playheadSec: TimeInterval = 0
+    var recorderStatusMessage = "Recorder ready"
     var previewText = ""
     var pressedNotes: [Int] = []
     var recentLogs: [EventLogItem] = []
@@ -87,6 +91,23 @@ final class PianoKeyViewModel {
         return profiles.first(where: { $0.id == activeProfileID })
     }
 
+    var selectedTake: RecordingTake? {
+        guard let selectedTakeID else { return nil }
+        return takes.first(where: { $0.id == selectedTakeID })
+    }
+
+    var canRecord: Bool {
+        isListening && recorderMode != .playing
+    }
+
+    var canPlay: Bool {
+        selectedTake != nil && recorderMode != .recording
+    }
+
+    var canStop: Bool {
+        recorderMode != .idle
+    }
+
     var connectionDescription: String {
         switch connectionState {
         case .idle:
@@ -104,6 +125,7 @@ final class PianoKeyViewModel {
         do {
             try repository.ensureSeedProfilesIfNeeded()
             try reloadProfiles(preserveActiveID: nil)
+            try reloadTakes(preserveSelectedID: nil)
         } catch {
             statusMessage = "Init failed: \(error.localizedDescription)"
             log(title: "Init Failed", detail: error.localizedDescription)
@@ -504,6 +526,17 @@ final class PianoKeyViewModel {
            !active.isActive {
             try repository.setActiveProfile(id: activeProfileID)
             profiles = try repository.fetchProfiles()
+        }
+    }
+
+    private func reloadTakes(preserveSelectedID: UUID?) throws {
+        takes = try recordingRepository.fetchTakes()
+
+        let preferredID = preserveSelectedID ?? selectedTakeID
+        if let preferredID, takes.contains(where: { $0.id == preferredID }) {
+            selectedTakeID = preferredID
+        } else {
+            selectedTakeID = takes.first?.id
         }
     }
 
