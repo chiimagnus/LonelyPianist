@@ -49,6 +49,9 @@ final class PianoKeyViewModel {
     private let keyboardEventService: KeyboardEventServiceProtocol
     private let permissionService: PermissionServiceProtocol
     private let repository: MappingProfileRepositoryProtocol
+    private let recordingRepository: RecordingTakeRepositoryProtocol
+    private let recordingService: RecordingServiceProtocol
+    private let playbackService: MIDIPlaybackServiceProtocol
     private let mappingEngine: MappingEngineProtocol
     private let shortcutService: ShortcutServiceProtocol
     private var permissionPollingTask: Task<Void, Never>?
@@ -59,6 +62,9 @@ final class PianoKeyViewModel {
         keyboardEventService: KeyboardEventServiceProtocol,
         permissionService: PermissionServiceProtocol,
         repository: MappingProfileRepositoryProtocol,
+        recordingRepository: RecordingTakeRepositoryProtocol,
+        recordingService: RecordingServiceProtocol,
+        playbackService: MIDIPlaybackServiceProtocol,
         mappingEngine: MappingEngineProtocol,
         shortcutService: ShortcutServiceProtocol
     ) {
@@ -66,6 +72,9 @@ final class PianoKeyViewModel {
         self.keyboardEventService = keyboardEventService
         self.permissionService = permissionService
         self.repository = repository
+        self.recordingRepository = recordingRepository
+        self.recordingService = recordingService
+        self.playbackService = playbackService
         self.mappingEngine = mappingEngine
         self.shortcutService = shortcutService
 

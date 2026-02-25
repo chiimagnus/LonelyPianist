@@ -9,7 +9,9 @@ struct PianoKeyApp: App {
 
     init() {
         let schema = Schema([
-            MappingProfileEntity.self
+            MappingProfileEntity.self,
+            RecordingTakeEntity.self,
+            RecordedNoteEntity.self
         ])
 
         do {
@@ -19,11 +21,15 @@ struct PianoKeyApp: App {
         }
 
         let repository = SwiftDataMappingProfileRepository(context: modelContainer.mainContext)
+        let recordingRepository = SwiftDataRecordingTakeRepository(context: modelContainer.mainContext)
         let viewModel = PianoKeyViewModel(
             midiInputService: CoreMIDIInputService(),
             keyboardEventService: KeyboardEventService(),
             permissionService: AccessibilityPermissionService(),
             repository: repository,
+            recordingRepository: recordingRepository,
+            recordingService: DefaultRecordingService(clock: SystemClock()),
+            playbackService: AVSamplerMIDIPlaybackService(),
             mappingEngine: DefaultMappingEngine(),
             shortcutService: ShortcutExecutionService()
         )
