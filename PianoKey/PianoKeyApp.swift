@@ -4,7 +4,6 @@ import SwiftUI
 @main
 @MainActor
 struct PianoKeyApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     private let modelContainer: ModelContainer
     @State private var viewModel: PianoKeyViewModel
 
