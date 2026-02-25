@@ -6,11 +6,23 @@ import OSLog
 @MainActor
 @Observable
 final class PianoKeyViewModel {
-    enum MainPanelTab: String, CaseIterable, Identifiable {
+    enum MainWindowSection: String, CaseIterable, Identifiable {
+        case runtime = "Runtime"
         case mappings = "Mappings"
         case recorder = "Recorder"
 
         var id: String { rawValue }
+
+        var systemImage: String {
+            switch self {
+            case .runtime:
+                return "gauge"
+            case .mappings:
+                return "slider.horizontal.3"
+            case .recorder:
+                return "waveform"
+            }
+        }
     }
 
     enum EditorTab: String, CaseIterable, Identifiable {
@@ -44,7 +56,7 @@ final class PianoKeyViewModel {
     var profiles: [MappingProfile] = []
     var activeProfileID: UUID?
 
-    var selectedMainPanelTab: MainPanelTab = .mappings
+    var selectedMainWindowSection: MainWindowSection = .runtime
     var selectedTab: EditorTab = .singleKey
     var recorderMode: RecorderMode = .idle
     var takes: [RecordingTake] = []
@@ -236,11 +248,11 @@ final class PianoKeyViewModel {
     }
 
     func showMappingsPanel() {
-        selectedMainPanelTab = .mappings
+        selectedMainWindowSection = .mappings
     }
 
     func showRecorderPanel() {
-        selectedMainPanelTab = .recorder
+        selectedMainWindowSection = .recorder
     }
 
     func startRecordingTake() {

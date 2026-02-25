@@ -6,6 +6,7 @@ import SwiftUI
 struct PianoKeyApp: App {
     private let modelContainer: ModelContainer
     @State private var viewModel: PianoKeyViewModel
+    @State private var mainWindowService: MainWindowService
 
     init() {
         let schema = Schema([
@@ -37,19 +38,14 @@ struct PianoKeyApp: App {
         viewModel.bootstrap()
 
         _viewModel = State(initialValue: viewModel)
+        _mainWindowService = State(initialValue: MainWindowService(modelContainer: modelContainer, viewModel: viewModel))
     }
 
     var body: some Scene {
         MenuBarExtra("PianoKey", systemImage: "pianokeys") {
-            MenuBarPanelView(viewModel: viewModel)
+            MenuBarPanelView(viewModel: viewModel, mainWindowService: mainWindowService)
         }
         .menuBarExtraStyle(.window)
-
-        Window("PianoKey", id: "control-panel") {
-            ContentView(viewModel: viewModel)
-        }
-        .defaultSize(width: 560, height: 760)
-        .windowResizability(.contentSize)
         .modelContainer(modelContainer)
     }
 }

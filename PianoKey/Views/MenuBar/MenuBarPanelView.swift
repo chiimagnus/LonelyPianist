@@ -1,9 +1,10 @@
+import AppKit
 import Observation
 import SwiftUI
 
 struct MenuBarPanelView: View {
     @Bindable var viewModel: PianoKeyViewModel
-    @Environment(\.openWindow) private var openWindow
+    let mainWindowService: MainWindowService
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -67,15 +68,25 @@ struct MenuBarPanelView: View {
 
             Divider()
 
-            Button("Open Control Panel") {
-                viewModel.showMappingsPanel()
-                openWindow(id: "control-panel")
+            Button("Open PianoKey") {
+                mainWindowService.show()
             }
             .buttonStyle(.bordered)
 
-            Button("Open Recorder") {
-                viewModel.showRecorderPanel()
-                openWindow(id: "control-panel")
+            HStack(spacing: 8) {
+                Button("Open Mappings") {
+                    mainWindowService.show(section: .mappings)
+                }
+                .buttonStyle(.bordered)
+
+                Button("Open Recorder") {
+                    mainWindowService.show(section: .recorder)
+                }
+                .buttonStyle(.bordered)
+            }
+
+            Button("Quit PianoKey") {
+                NSApp.terminate(nil)
             }
             .buttonStyle(.bordered)
         }
