@@ -6,6 +6,13 @@ import OSLog
 @MainActor
 @Observable
 final class PianoKeyViewModel {
+    enum MainPanelTab: String, CaseIterable, Identifiable {
+        case mappings = "Mappings"
+        case recorder = "Recorder"
+
+        var id: String { rawValue }
+    }
+
     enum EditorTab: String, CaseIterable, Identifiable {
         case singleKey = "Single Key"
         case chord = "Chord"
@@ -37,6 +44,7 @@ final class PianoKeyViewModel {
     var profiles: [MappingProfile] = []
     var activeProfileID: UUID?
 
+    var selectedMainPanelTab: MainPanelTab = .mappings
     var selectedTab: EditorTab = .singleKey
     var recorderMode: RecorderMode = .idle
     var takes: [RecordingTake] = []
