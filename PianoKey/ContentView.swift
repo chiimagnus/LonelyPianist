@@ -33,8 +33,6 @@ struct MainWindowView: View {
         .background(
             WindowAccessor { window in
                 window.delegate = lifecycleService
-                window.standardWindowButton(.zoomButton)?.isEnabled = false
-                window.collectionBehavior.insert(.fullScreenNone)
             }
         )
     }
