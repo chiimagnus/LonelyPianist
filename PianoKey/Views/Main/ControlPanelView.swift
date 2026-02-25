@@ -19,7 +19,7 @@ struct ControlPanelView: View {
             case .mappings:
                 mappingsView
             case .recorder:
-                recorderPlaceholderView
+                RecorderPanelView(viewModel: viewModel)
             }
         }
         .background(Color(nsColor: .windowBackgroundColor))
@@ -38,15 +38,4 @@ struct ControlPanelView: View {
         }
     }
 
-    private var recorderPlaceholderView: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "waveform.and.mic")
-                .font(.system(size: 28))
-                .foregroundStyle(.secondary)
-            Text("Recorder panel is being prepared...")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
 }
