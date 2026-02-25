@@ -51,9 +51,6 @@ struct PianoKeyApp: App {
             MainWindowView(viewModel: viewModel)
                 .modelContainer(modelContainer)
         }
-        .defaultSize(width: 980, height: 720)
-        .windowStyle(.hiddenTitleBar)
-        .windowResizability(.contentMinSize)
         .defaultLaunchBehavior(.suppressed)
     }
 }
