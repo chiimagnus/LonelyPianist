@@ -435,6 +435,10 @@ final class PianoKeyViewModel {
         midiEventCount += 1
         updatePressedNotes(for: event)
 
+        if recorderMode == .recording {
+            recordingService.append(event: event)
+        }
+
         guard let activeProfile else { return }
 
         let resolvedActions = mappingEngine.process(event: event, profile: activeProfile)
