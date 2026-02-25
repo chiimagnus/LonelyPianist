@@ -9,7 +9,7 @@ struct PianoKeyApp: App {
     @State private var viewModel: PianoKeyViewModel
 
     init() {
-        DockPresenceService.hideDockIcon()
+        DockPresenceService.hideDockIfAllowedWhenNoVisibleWindows()
 
         let schema = Schema([
             MappingProfileEntity.self,

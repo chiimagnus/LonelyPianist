@@ -69,7 +69,7 @@ struct MenuBarPanelView: View {
             Divider()
 
             Button("Open PianoKey") {
-                DockPresenceService.showDockIcon()
+                DockPresenceService.prepareForPresentingMainWindow()
                 openWindow(id: "main")
             }
             .buttonStyle(.bordered)
