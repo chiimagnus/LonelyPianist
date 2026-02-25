@@ -1,9 +1,12 @@
+import AppKit
+import MenuBarDockKit
 import Observation
 import SwiftUI
 
 struct MainWindowView: View {
     @Bindable var viewModel: PianoKeyViewModel
-    @State private var lifecycleService = MainWindowLifecycleService()
+    @State private var mainWindow: NSWindow?
+    @State private var mainWindowDockVisibilityController = MainWindowDockVisibilityController()
 
     var body: some View {
         NavigationSplitView {
@@ -31,10 +34,13 @@ struct MainWindowView: View {
             }
         }
         .background(
-            WindowAccessor { window in
-                window.delegate = lifecycleService
+            WindowReader(window: $mainWindow) { newWindow in
+                mainWindowDockVisibilityController.attachWindow(newWindow)
             }
         )
+        .onDisappear {
+            mainWindowDockVisibilityController.reset()
+        }
     }
 
     private var sidebarSelection: Binding<PianoKeyViewModel.MainWindowSection?> {
