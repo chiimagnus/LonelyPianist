@@ -245,6 +245,51 @@ final class PianoKeyViewModel {
         log(title: "Recorder", detail: "Recording started")
     }
 
+    func selectTake(_ id: UUID) {
+        guard takes.contains(where: { $0.id == id }) else { return }
+
+        if recorderMode == .playing {
+            stopTransport()
+        }
+
+        selectedTakeID = id
+        if let selectedTake {
+            recorderStatusMessage = "Selected \(selectedTake.name)"
+        }
+    }
+
+    func renameTake(_ id: UUID, to name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        do {
+            try recordingRepository.renameTake(id: id, name: trimmed)
+            try reloadTakes(preserveSelectedID: id)
+            recorderStatusMessage = "Take renamed"
+            log(title: "Recorder", detail: "Take renamed: \(trimmed)")
+        } catch {
+            recorderStatusMessage = "Rename failed: \(error.localizedDescription)"
+            log(title: "Recorder Rename Failed", detail: error.localizedDescription)
+        }
+    }
+
+    func deleteTake(_ id: UUID) {
+        if recorderMode == .playing && selectedTakeID == id {
+            stopTransport()
+        }
+
+        do {
+            try recordingRepository.deleteTake(id: id)
+            let preserveID = selectedTakeID == id ? nil : selectedTakeID
+            try reloadTakes(preserveSelectedID: preserveID)
+            recorderStatusMessage = "Take deleted"
+            log(title: "Recorder", detail: "Take deleted")
+        } catch {
+            recorderStatusMessage = "Delete failed: \(error.localizedDescription)"
+            log(title: "Recorder Delete Failed", detail: error.localizedDescription)
+        }
+    }
+
     func playSelectedTake() {
         guard let selectedTake else { return }
 
@@ -272,11 +317,32 @@ final class PianoKeyViewModel {
             return
 
         case .recording:
-            recordingService.cancelRecording()
+            let now = Date()
+            let take = recordingService.stopRecording(
+                at: now,
+                takeID: UUID(),
+                name: defaultTakeName(at: now)
+            )
+
+            do {
+                if let take {
+                    try recordingRepository.saveTake(take)
+                    try reloadTakes(preserveSelectedID: take.id)
+                    recorderStatusMessage = "Saved \(take.name)"
+                    statusMessage = "Recording saved"
+                    log(title: "Recorder", detail: "Recording saved: \(take.name)")
+                } else {
+                    recorderStatusMessage = "Recording cancelled"
+                    statusMessage = "Recording cancelled"
+                    log(title: "Recorder", detail: "Recording cancelled")
+                }
+            } catch {
+                recorderStatusMessage = "Save failed: \(error.localizedDescription)"
+                statusMessage = "Save failed"
+                log(title: "Recorder Save Failed", detail: error.localizedDescription)
+            }
+
             recorderMode = .idle
-            recorderStatusMessage = "Recording cancelled"
-            statusMessage = "Recording cancelled"
-            log(title: "Recorder", detail: "Recording cancelled")
 
         case .playing:
             playbackService.stop()
@@ -627,5 +693,11 @@ final class PianoKeyViewModel {
         if recentLogs.count > maxLogCount {
             recentLogs.removeLast(recentLogs.count - maxLogCount)
         }
+    }
+
+    private func defaultTakeName(at date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return "Take \(formatter.string(from: date))"
     }
 }
