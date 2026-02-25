@@ -19,7 +19,7 @@ final class DefaultRecordingService: RecordingServiceProtocol {
     private(set) var isRecording = false
     private(set) var startedAt: Date?
 
-    init(clock: ClockProtocol = SystemClock()) {
+    init(clock: ClockProtocol) {
         self.clock = clock
     }
 
@@ -33,6 +33,7 @@ final class DefaultRecordingService: RecordingServiceProtocol {
     func append(event: MIDIEvent) {
         guard isRecording, let startedAt else { return }
 
+        let eventTimestamp = event.timestamp < startedAt ? clock.now() : event.timestamp
         let note = max(0, min(127, event.note))
         let channel = max(1, event.channel)
         let velocity = max(0, min(127, event.velocity))
@@ -46,11 +47,11 @@ final class DefaultRecordingService: RecordingServiceProtocol {
                     velocity: openNote.velocity,
                     channel: channel,
                     startAt: openNote.startedAt,
-                    endAt: event.timestamp,
+                    endAt: eventTimestamp,
                     recordingStartedAt: startedAt
                 )
             }
-            openNotes[key] = OpenNote(startedAt: event.timestamp, velocity: velocity)
+            openNotes[key] = OpenNote(startedAt: eventTimestamp, velocity: velocity)
 
         case .noteOff:
             guard let openNote = openNotes.removeValue(forKey: key) else { return }
@@ -59,7 +60,7 @@ final class DefaultRecordingService: RecordingServiceProtocol {
                 velocity: openNote.velocity,
                 channel: channel,
                 startAt: openNote.startedAt,
-                endAt: event.timestamp,
+                endAt: eventTimestamp,
                 recordingStartedAt: startedAt
             )
         }
@@ -67,6 +68,7 @@ final class DefaultRecordingService: RecordingServiceProtocol {
 
     func stopRecording(at date: Date, takeID: UUID, name: String) -> RecordingTake? {
         guard isRecording, let startedAt else { return nil }
+        let stopAt = date < startedAt ? clock.now() : date
 
         for (key, openNote) in openNotes {
             appendRecordedNote(
@@ -74,14 +76,14 @@ final class DefaultRecordingService: RecordingServiceProtocol {
                 velocity: openNote.velocity,
                 channel: key.channel,
                 startAt: openNote.startedAt,
-                endAt: date,
+                endAt: stopAt,
                 recordingStartedAt: startedAt
             )
         }
 
         let sanitizedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let takeName = sanitizedName.isEmpty ? "Take \(formatted(date: date))" : sanitizedName
-        let duration = max(0, date.timeIntervalSince(startedAt))
+        let takeName = sanitizedName.isEmpty ? "Take \(formatted(date: stopAt))" : sanitizedName
+        let duration = max(0, stopAt.timeIntervalSince(startedAt))
         let notes = recordedNotes.sorted { lhs, rhs in
             if lhs.startOffsetSec != rhs.startOffsetSec {
                 return lhs.startOffsetSec < rhs.startOffsetSec
@@ -93,7 +95,7 @@ final class DefaultRecordingService: RecordingServiceProtocol {
             id: takeID,
             name: takeName,
             createdAt: startedAt,
-            updatedAt: date,
+            updatedAt: stopAt,
             durationSec: duration,
             notes: notes
         )
