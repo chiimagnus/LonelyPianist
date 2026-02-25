@@ -43,13 +43,9 @@ struct PianoKeyApp: App {
         MenuBarExtra("PianoKey", systemImage: "pianokeys") {
             MenuBarPanelView(viewModel: viewModel)
         }
-        .menuBarExtraStyle(.window)
-        .modelContainer(modelContainer)
 
         Window("", id: "main") {
             MainWindowView(viewModel: viewModel)
-                .modelContainer(modelContainer)
         }
-        .defaultLaunchBehavior(.suppressed)
     }
 }
