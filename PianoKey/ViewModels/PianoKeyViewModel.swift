@@ -227,6 +227,66 @@ final class PianoKeyViewModel {
         }
     }
 
+    func startRecordingTake() {
+        guard canRecord else { return }
+
+        if recorderMode == .playing {
+            stopTransport()
+        }
+
+        guard recorderMode == .idle else { return }
+
+        let now = Date()
+        recordingService.startRecording(at: now)
+        recorderMode = .recording
+        playheadSec = 0
+        recorderStatusMessage = "Recording..."
+        statusMessage = "Recording take"
+        log(title: "Recorder", detail: "Recording started")
+    }
+
+    func playSelectedTake() {
+        guard let selectedTake else { return }
+
+        if recorderMode == .recording {
+            stopTransport()
+        }
+
+        do {
+            try playbackService.play(take: selectedTake)
+            recorderMode = .playing
+            playheadSec = 0
+            recorderStatusMessage = "Playing \(selectedTake.name)"
+            statusMessage = "Playing take"
+            log(title: "Recorder", detail: "Playback started: \(selectedTake.name)")
+        } catch {
+            recorderStatusMessage = "Playback failed: \(error.localizedDescription)"
+            statusMessage = "Playback failed"
+            log(title: "Playback Failed", detail: error.localizedDescription)
+        }
+    }
+
+    func stopTransport() {
+        switch recorderMode {
+        case .idle:
+            return
+
+        case .recording:
+            recordingService.cancelRecording()
+            recorderMode = .idle
+            recorderStatusMessage = "Recording cancelled"
+            statusMessage = "Recording cancelled"
+            log(title: "Recorder", detail: "Recording cancelled")
+
+        case .playing:
+            playbackService.stop()
+            recorderMode = .idle
+            recorderStatusMessage = "Playback stopped"
+            statusMessage = "Playback stopped"
+            log(title: "Recorder", detail: "Playback stopped")
+        }
+    }
+
     func setActiveProfile(_ id: UUID) {
         do {
             try repository.setActiveProfile(id: id)
@@ -387,6 +447,17 @@ final class PianoKeyViewModel {
     }
 
     private func bindServiceCallbacks() {
+        playbackService.onPlaybackFinished = { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if recorderMode == .playing {
+                    recorderMode = .idle
+                    recorderStatusMessage = "Playback finished"
+                    statusMessage = "Playback finished"
+                }
+            }
+        }
+
         midiInputService.onConnectionStateChange = { [weak self] state in
             Task { @MainActor [weak self] in
                 self?.connectionState = state
