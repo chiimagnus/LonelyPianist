@@ -4,9 +4,9 @@ import SwiftUI
 @main
 @MainActor
 struct PianoKeyApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     private let modelContainer: ModelContainer
     @State private var viewModel: PianoKeyViewModel
-    @State private var mainWindowService: MainWindowService
 
     init() {
         let schema = Schema([
@@ -38,14 +38,22 @@ struct PianoKeyApp: App {
         viewModel.bootstrap()
 
         _viewModel = State(initialValue: viewModel)
-        _mainWindowService = State(initialValue: MainWindowService(modelContainer: modelContainer, viewModel: viewModel))
     }
 
     var body: some Scene {
         MenuBarExtra("PianoKey", systemImage: "pianokeys") {
-            MenuBarPanelView(viewModel: viewModel, mainWindowService: mainWindowService)
+            MenuBarPanelView(viewModel: viewModel)
         }
         .menuBarExtraStyle(.window)
         .modelContainer(modelContainer)
+
+        Window("", id: "main") {
+            MainWindowView(viewModel: viewModel)
+                .modelContainer(modelContainer)
+        }
+        .defaultSize(width: 980, height: 720)
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentMinSize)
+        .defaultLaunchBehavior(.suppressed)
     }
 }
