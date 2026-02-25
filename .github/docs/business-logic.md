@@ -87,4 +87,4 @@ flowchart TD
 2. `PianoKey/ViewModels/PianoKeyViewModel.swift`：监听状态、权限流程、映射与 Recorder 状态机编排中心。
 3. `PianoKey/Services/MIDI/CoreMIDIInputService.swift`：MIDI Source 连接与事件接收。
 4. `PianoKey/Services/Mapping/DefaultMappingEngine.swift`：单键/和弦/旋律/力度匹配规则实现。
-5. `PianoKey/Views/Main/Recorder/RecorderPanelView.swift`：Recorder 主界面（Library/Transport/Piano Roll）入口。
+5. `PianoKey/Views/Recording/RecorderPanelView.swift`：Recorder 主界面（Library/Transport/Piano Roll）入口。
