@@ -154,13 +154,13 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
         var displayName: Unmanaged<CFString>?
         let displayStatus = MIDIObjectGetStringProperty(endpoint, kMIDIPropertyDisplayName, &displayName)
         if displayStatus == noErr, let displayName {
-            return displayName.takeRetainedValue() as String
+            return displayName.takeUnretainedValue() as String
         }
 
         var name: Unmanaged<CFString>?
         let nameStatus = MIDIObjectGetStringProperty(endpoint, kMIDIPropertyName, &name)
         if nameStatus == noErr, let name {
-            return name.takeRetainedValue() as String
+            return name.takeUnretainedValue() as String
         }
 
         return "Unknown MIDI Source"

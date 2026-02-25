@@ -1,6 +1,5 @@
 import Foundation
 
-@MainActor
 final class DefaultRecordingService: RecordingServiceProtocol {
     private struct NoteKey: Hashable {
         let note: Int

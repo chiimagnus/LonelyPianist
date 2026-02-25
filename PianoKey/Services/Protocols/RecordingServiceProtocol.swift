@@ -1,6 +1,5 @@
 import Foundation
 
-@MainActor
 protocol RecordingServiceProtocol {
     var isRecording: Bool { get }
     var startedAt: Date? { get }
