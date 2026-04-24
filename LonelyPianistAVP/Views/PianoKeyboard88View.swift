@@ -58,8 +58,7 @@ struct PianoKeyboard88View: View {
                         }
                         .overlay(alignment: .bottom) {
                             if highlightedInRange.contains(key.midiNote),
-                               let fingering = fingeringByMIDINote[key.midiNote]
-                            {
+                               let fingering = fingeringByMIDINote[key.midiNote] {
                                 Text(fingering)
                                     .font(.caption2.weight(.semibold))
                                     .foregroundStyle(.black.opacity(0.78))
@@ -79,8 +78,7 @@ struct PianoKeyboard88View: View {
                         }
                         .overlay(alignment: .bottom) {
                             if highlightedInRange.contains(key.midiNote),
-                               let fingering = fingeringByMIDINote[key.midiNote]
-                            {
+                               let fingering = fingeringByMIDINote[key.midiNote] {
                                 Text(fingering)
                                     .font(.caption2.weight(.semibold))
                                     .foregroundStyle(.white.opacity(0.92))
