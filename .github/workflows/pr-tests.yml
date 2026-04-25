@@ -84,3 +84,26 @@ jobs:
             -scheme LonelyPianistAVP \
             -destination 'platform=visionOS Simulator,name=Apple Vision Pro' \
             CODE_SIGNING_ALLOWED=NO
+
+  avp-build:
+    name: AVP app build
+    needs: changes
+    if: needs.changes.outputs.avp == 'true'
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: List schemes
+        run: xcodebuild -list -project LonelyPianist.xcodeproj
+
+      - name: Build AVP app
+        run: |
+          xcodebuild build \
+            -project LonelyPianist.xcodeproj \
+            -scheme LonelyPianistAVP \
+            -destination 'platform=visionOS Simulator,name=Apple Vision Pro' \
+            CODE_SIGNING_ALLOWED=NO
