@@ -45,38 +45,41 @@ func rectangularBeamRootStartsAboveKeyTop() {
 }
 
 @Test
-func bodySegmentsStackUpwardAndFadeTowardTop() {
+func singleGradientBeamUsesOneCuboidScaleAndPosition() {
     let footprint = SIMD2<Float>(0.02, 0.12)
-    let descriptors = PianoGuideBeamGeometry.bodySegmentDescriptors(footprint: footprint)
 
-    #expect(descriptors.count == PianoGuideBeamGeometry.bodySegmentCount)
-    #expect(descriptors[0].position.y < descriptors[1].position.y)
-    #expect(descriptors[1].position.y < descriptors[2].position.y)
-    #expect(descriptors[0].alpha > descriptors[1].alpha)
-    #expect(descriptors[1].alpha > descriptors[2].alpha)
+    let scale = PianoGuideBeamGeometry.beamScale(footprint: footprint)
+    let position = PianoGuideBeamGeometry.beamPosition()
 
-    let expectedHeight = PianoGuideBeamGeometry.beamHeight / Float(PianoGuideBeamGeometry.bodySegmentCount)
-    for descriptor in descriptors {
-        #expect(abs(descriptor.scale.y - expectedHeight) < 1e-6)
-    }
+    #expect(abs(scale.x - 0.02) < 1e-6)
+    #expect(abs(scale.y - PianoGuideBeamGeometry.beamHeight) < 1e-6)
+    #expect(abs(scale.z - 0.12) < 1e-6)
+    #expect(abs(position.x) < 1e-6)
+    #expect(abs(position.y - (PianoGuideBeamGeometry.baseGlowHeight + PianoGuideBeamGeometry.beamHeight * 0.5)) < 1e-6)
+    #expect(abs(position.z) < 1e-6)
 }
 
 @Test
-func dustParticleOffsetsAreStableAndInsideBeamVolume() {
-    let firstOffsets = PianoGuideBeamGeometry.dustParticleOffsets(for: 60)
-    let secondOffsets = PianoGuideBeamGeometry.dustParticleOffsets(for: 60)
-    let differentNoteOffsets = PianoGuideBeamGeometry.dustParticleOffsets(for: 61)
+func baseGlowMatchesBeamFootprint() {
+    let footprint = SIMD2<Float>(0.02, 0.12)
 
-    #expect(firstOffsets.count == PianoGuideBeamGeometry.dustParticleCount)
-    #expect(firstOffsets == secondOffsets)
-    #expect(firstOffsets != differentNoteOffsets)
+    let scale = PianoGuideBeamGeometry.baseGlowScale(footprint: footprint)
+    let position = PianoGuideBeamGeometry.baseGlowPosition()
 
-    for offset in firstOffsets {
-        #expect(offset.x >= -0.38)
-        #expect(offset.x <= 0.38)
-        #expect(offset.y >= 0.14)
-        #expect(offset.y <= 0.86)
-        #expect(offset.z >= -0.38)
-        #expect(offset.z <= 0.38)
-    }
+    #expect(abs(scale.x - 0.0216) < 1e-6)
+    #expect(abs(scale.y - PianoGuideBeamGeometry.baseGlowHeight) < 1e-6)
+    #expect(abs(scale.z - 0.1296) < 1e-6)
+    #expect(abs(position.y - PianoGuideBeamGeometry.baseGlowHeight * 0.5) < 1e-6)
+}
+
+@Test
+func gradientAlphaFadesTowardTopAndEdges() {
+    let bottomCenter = PianoGuideBeamGeometry.gradientAlpha(horizontal: 0.5, vertical: 0)
+    let topCenter = PianoGuideBeamGeometry.gradientAlpha(horizontal: 0.5, vertical: 1)
+    let bottomEdge = PianoGuideBeamGeometry.gradientAlpha(horizontal: 0, vertical: 0)
+
+    #expect(bottomCenter > topCenter)
+    #expect(bottomCenter > bottomEdge)
+    #expect(topCenter > 0)
+    #expect(bottomCenter <= 0.36)
 }
