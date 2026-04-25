@@ -1,6 +1,7 @@
 import Foundation
 import RealityKit
 import SwiftUI
+import UIKit
 
 struct PianoGuideBeamGeometry {
     static let beamHeight: Float = 0.22
@@ -57,9 +58,10 @@ struct PianoGuideBeamGeometry {
     static func gradientAlpha(horizontal: Float, vertical: Float) -> CGFloat {
         let clampedX = min(max(horizontal, 0), 1)
         let clampedY = min(max(vertical, 0), 1)
-        let centerFalloff = pow(sin(.pi * clampedX), 0.72)
-        let edgeSoftness = 0.18 + 0.82 * centerFalloff
-        let verticalFade = pow(1 - clampedY, 1.65)
+        let centerWave = sin(Double(Float.pi * clampedX))
+        let centerFalloff = Float(pow(centerWave, 0.72))
+        let edgeSoftness: Float = 0.18 + 0.82 * centerFalloff
+        let verticalFade = Float(pow(Double(1 - clampedY), 1.65))
         let baseMist: Float = 0.018
         let beamStrength: Float = 0.34
         return CGFloat((baseMist + beamStrength * verticalFade) * edgeSoftness)
@@ -109,23 +111,26 @@ final class PianoGuideOverlayController {
                 AVPOverlayPalette.feedbackWrongColor
         }
 
-        if lastTintColor != tintColor {
+        if lastTintColor?.isEqual(tintColor) != true {
             for marker in activeMarkersByMIDINote.values {
                 applyMaterials(to: marker, tintColor: tintColor)
             }
             lastTintColor = tintColor
         }
 
-        let regionByNote = Dictionary(uniqueKeysWithValues: keyRegions.map { ($0.midiNote, $0) })
-        let desiredNotes: Set<Int> = Set(currentStep.notes.map(\.midiNote))
+        let regionByNote = keyRegions.reduce(into: [Int: PianoKeyRegion]()) { partialResult, region in
+            partialResult[region.midiNote] = region
+        }
+        let desiredNotes = Set(currentStep.notes.map(\.midiNote))
+        let drawableNotes = desiredNotes.intersection(regionByNote.keys)
 
-        let staleNotes = activeMarkersByMIDINote.keys.filter { desiredNotes.contains($0) == false }
+        let staleNotes = activeMarkersByMIDINote.keys.filter { drawableNotes.contains($0) == false }
         for midiNote in staleNotes {
             activeMarkersByMIDINote[midiNote]?.root.removeFromParent()
             activeMarkersByMIDINote[midiNote] = nil
         }
 
-        for midiNote in desiredNotes {
+        for midiNote in drawableNotes {
             guard let region = regionByNote[midiNote] else { continue }
 
             let centerWorld = SIMD4<Float>(region.center, 1)
@@ -149,15 +154,19 @@ final class PianoGuideOverlayController {
         let root = Entity()
         root.name = "key-beam-\(midiNote)"
 
-        let beam = ModelEntity(mesh: .generateBox(size: 1), materials: [])
-        let baseGlow = ModelEntity(mesh: .generateBox(size: 1), materials: [])
+        let beam = ModelEntity(
+            mesh: .generateBox(size: 1),
+            materials: [gradientBeamMaterial(for: tintColor)]
+        )
+        let baseGlow = ModelEntity(
+            mesh: .generateBox(size: 1),
+            materials: [baseGlowMaterial(for: tintColor)]
+        )
 
         root.addChild(beam)
         root.addChild(baseGlow)
 
-        let marker = KeyBeamMarker(root: root, beam: beam, baseGlow: baseGlow)
-        applyMaterials(to: marker, tintColor: tintColor)
-        return marker
+        return KeyBeamMarker(root: root, beam: beam, baseGlow: baseGlow)
     }
 
     private func update(marker: KeyBeamMarker, region: PianoKeyRegion, centerLocal: SIMD3<Float>) {
@@ -176,12 +185,12 @@ final class PianoGuideOverlayController {
         marker.baseGlow.model?.materials = [baseGlowMaterial(for: tintColor)]
     }
 
-    private func gradientBeamMaterial(for tintColor: UIColor) -> UnlitMaterial {
-        UnlitMaterial(color: tintColor.withAlphaComponent(0.20))
+    private func gradientBeamMaterial(for tintColor: UIColor) -> SimpleMaterial {
+        SimpleMaterial(color: tintColor.withAlphaComponent(0.20), isMetallic: false)
     }
 
-    private func baseGlowMaterial(for tintColor: UIColor) -> UnlitMaterial {
-        UnlitMaterial(color: tintColor.withAlphaComponent(0.42))
+    private func baseGlowMaterial(for tintColor: UIColor) -> SimpleMaterial {
+        SimpleMaterial(color: tintColor.withAlphaComponent(0.42), isMetallic: false)
     }
 
     private func clearMarkers() {
