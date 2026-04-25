@@ -78,7 +78,6 @@ final class PianoGuideOverlayController {
     private var keyboardRootEntity = Entity()
     private var hasAttachedRoot = false
     private var activeMarkersByMIDINote: [Int: KeyBeamMarker] = [:]
-    private var gradientTextureCache = BeamGradientTextureCache()
     private var lastTintColor: UIColor?
 
     func updateHighlights(
@@ -178,21 +177,11 @@ final class PianoGuideOverlayController {
     }
 
     private func gradientBeamMaterial(for tintColor: UIColor) -> UnlitMaterial {
-        if let texture = gradientTextureCache.beamTexture(for: tintColor) {
-            var material = UnlitMaterial(texture: texture)
-            material.blending = .transparent(opacity: .init(floatLiteral: 1.0))
-            return material
-        }
-
-        var fallback = UnlitMaterial(color: tintColor.withAlphaComponent(0.20))
-        fallback.blending = .transparent(opacity: .init(floatLiteral: 0.20))
-        return fallback
+        UnlitMaterial(color: tintColor.withAlphaComponent(0.20))
     }
 
     private func baseGlowMaterial(for tintColor: UIColor) -> UnlitMaterial {
-        var material = UnlitMaterial(color: tintColor.withAlphaComponent(0.42))
-        material.blending = .transparent(opacity: .init(floatLiteral: 0.42))
-        return material
+        UnlitMaterial(color: tintColor.withAlphaComponent(0.42))
     }
 
     private func clearMarkers() {
@@ -201,87 +190,5 @@ final class PianoGuideOverlayController {
         }
         activeMarkersByMIDINote.removeAll()
         lastTintColor = nil
-    }
-}
-
-@MainActor
-private struct BeamGradientTextureCache {
-    private var texturesByKey: [String: TextureResource] = [:]
-
-    mutating func beamTexture(for tintColor: UIColor) -> TextureResource? {
-        let key = cacheKey(for: tintColor)
-        if let texture = texturesByKey[key] {
-            return texture
-        }
-
-        guard let image = makeGradientImage(tintColor: tintColor) else {
-            return nil
-        }
-
-        guard let texture = try? TextureResource(
-            image: image,
-            options: TextureResource.CreateOptions(semantic: .color)
-        ) else {
-            return nil
-        }
-
-        texturesByKey[key] = texture
-        return texture
-    }
-
-    private func cacheKey(for tintColor: UIColor) -> String {
-        let components = rgbaComponents(for: tintColor)
-        return [components.red, components.green, components.blue]
-            .map { String(format: "%.4f", Double($0)) }
-            .joined(separator: ":")
-    }
-
-    private func makeGradientImage(tintColor: UIColor) -> CGImage? {
-        let width = 64
-        let height = 256
-        let components = rgbaComponents(for: tintColor)
-        var pixels = [UInt8](repeating: 0, count: width * height * 4)
-
-        for y in 0 ..< height {
-            for x in 0 ..< width {
-                let horizontal = Float(x) / Float(max(width - 1, 1))
-                let vertical = Float(y) / Float(max(height - 1, 1))
-                let alpha = Float(PianoGuideBeamGeometry.gradientAlpha(horizontal: horizontal, vertical: vertical))
-                let offset = (y * width + x) * 4
-
-                pixels[offset] = UInt8(clamping: Int(components.red * alpha * 255))
-                pixels[offset + 1] = UInt8(clamping: Int(components.green * alpha * 255))
-                pixels[offset + 2] = UInt8(clamping: Int(components.blue * alpha * 255))
-                pixels[offset + 3] = UInt8(clamping: Int(alpha * 255))
-            }
-        }
-
-        guard let provider = CGDataProvider(data: Data(pixels) as CFData) else {
-            return nil
-        }
-
-        let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
-        return CGImage(
-            width: width,
-            height: height,
-            bitsPerComponent: 8,
-            bitsPerPixel: 32,
-            bytesPerRow: width * 4,
-            space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: bitmapInfo,
-            provider: provider,
-            decode: nil,
-            shouldInterpolate: true,
-            intent: .defaultIntent
-        )
-    }
-
-    private func rgbaComponents(for color: UIColor) -> (red: CGFloat, green: CGFloat, blue: CGFloat, alpha: CGFloat) {
-        var red: CGFloat = 1
-        var green: CGFloat = 1
-        var blue: CGFloat = 1
-        var alpha: CGFloat = 1
-        color.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-        return (red, green, blue, alpha)
     }
 }
