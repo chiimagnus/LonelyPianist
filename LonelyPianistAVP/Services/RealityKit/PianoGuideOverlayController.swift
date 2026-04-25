@@ -177,7 +177,7 @@ final class PianoGuideOverlayController {
         marker.baseGlow.model?.materials = [baseGlowMaterial(for: tintColor)]
     }
 
-    private func gradientBeamMaterial(for tintColor: UIColor) -> Material {
+    private func gradientBeamMaterial(for tintColor: UIColor) -> UnlitMaterial {
         if let texture = gradientTextureCache.beamTexture(for: tintColor) {
             var material = UnlitMaterial(texture: texture)
             material.blending = .transparent(opacity: .init(floatLiteral: 1.0))
@@ -189,7 +189,7 @@ final class PianoGuideOverlayController {
         return fallback
     }
 
-    private func baseGlowMaterial(for tintColor: UIColor) -> Material {
+    private func baseGlowMaterial(for tintColor: UIColor) -> UnlitMaterial {
         var material = UnlitMaterial(color: tintColor.withAlphaComponent(0.42))
         material.blending = .transparent(opacity: .init(floatLiteral: 0.42))
         return material
