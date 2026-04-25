@@ -20,8 +20,11 @@
 | Press cooldown | `0.15s` | 手部按键去抖 |
 | Chord window | `0.6s` | 和弦累积 |
 | Practice note tolerance | `±1` 半音 | 练习匹配 |
-| Light beam height | `0.22` meter-ish RealityKit local units | 当前 step 的空间光柱高度 |
-| Light beam alpha | `0.42` | 光柱透明度 |
+| Rectangular beam height | `0.22` meter-ish RealityKit local units | 当前 step 的矩形体积光柱高度 |
+| Rectangular beam base offset | `0.006` | 光柱从琴键上表面向上偏移，避免穿进 key region |
+| Rectangular beam base glow height | `0.004` | 琴键表面发光薄片高度 |
+| Rectangular beam segments | `3` | 底部/中部/顶部渐隐段数 |
+| Rectangular beam dust particles | `8` per note | 稳定微粒数量，模拟丁达尔感 |
 
 ## 构建与工程配置
 | 项目 | 位置 | 说明 |
@@ -77,11 +80,15 @@
 | `macos-latest` 用于 Xcode tests | Swift tools 6.2 package graph 可能失败 | PR Tests 使用 `macos-26` |
 | AVP test destination 变更 | `xcodebuild` 找不到 Apple Vision Pro simulator | 先跑 `xcodebuild -showdestinations` 再调整 destination |
 | Swift Quality 在 PR 中自动触发 | workflow 可能自改 PR 分支并循环 | 当前只保留手动触发 |
+| 矩形光柱太亮或遮挡琴键 | 真机中可能像玻璃块或影响读谱 | 调低 segment alpha、base glow alpha 或 beam height |
+| 矩形光柱和琴键表面错位 | 视觉提示悬空或穿进琴键 | 检查 `PianoGuideBeamGeometry.rootLocalPosition`、`PianoKeyRegion.center/size` 和 `keyboardFrame.keyboardFromWorld` |
 
 ## Coverage Gaps
 - Python 依赖没有 lockfile；环境变量也没有统一 `.env.example`。
 - Python smoke tests 尚未进入 GitHub Actions。
 - AVP simulator tests 已验证可跑，但耗时高于 macOS tests；若后续不稳定，可拆为 `build-for-testing` 和手动完整 test。
+- 矩形体积光柱的透明度、丁达尔感和视觉舒适度仍需 Vision Pro 真机调参。
 
 ## 更新记录（Update Notes）
 - 2026-04-25: 更新 PR-only split tests、manual-only Swift Quality、`macos-26`、Swift tools 6.2 和 AVP light beam 参数。
+- 2026-04-25: 将 AVP light beam 配置从 cylinder radius/alpha 更新为 rectangular volumetric beam 参数。
