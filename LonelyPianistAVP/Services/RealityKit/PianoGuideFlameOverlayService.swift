@@ -329,7 +329,7 @@ final class PianoGuideFlameOverlayService {
         component.isEmitting = true
         component.mainEmitter.birthRate = parameters.birthRate * birthRateMultiplier
         component.mainEmitter.size = parameters.particleSize * sizeMultiplier
-        component.mainEmitter.lifeSpan = parameters.lifetime
+        component.mainEmitter.lifeSpan = Double(parameters.lifetime)
         component.mainEmitter.blendMode = .additive
         component.mainEmitter.isLightingEnabled = false
         typealias ParticleEmitter = ParticleEmitterComponent.ParticleEmitter
