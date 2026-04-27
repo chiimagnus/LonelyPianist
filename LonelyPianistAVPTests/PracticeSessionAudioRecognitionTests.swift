@@ -17,7 +17,7 @@ func fakeAudioRecognitionServiceEmitsEventToConsumer() async {
     )
 
     let consumeTask = Task<DetectedNoteEvent?, Never> {
-        for await next in await service.events {
+        for await next in service.events {
             return next
         }
         return nil
@@ -39,9 +39,9 @@ func fakeAudioRecognitionServiceRecordsLifecycleCalls() async throws {
         generation: 3,
         suppressUntil: nil
     )
-    await service.updateExpectedNotes([64], wrongCandidateMIDINotes: [63], generation: 4)
-    await service.suppressRecognition(until: now, generation: 4)
-    await service.stop()
+    service.updateExpectedNotes([64], wrongCandidateMIDINotes: [63], generation: 4)
+    service.suppressRecognition(until: now, generation: 4)
+    service.stop()
 
     #expect(service.startCalls == [.init(
         expectedMIDINotes: [60],
@@ -154,6 +154,7 @@ func matchingAudioEventAdvancesStep() async {
 
     #expect(viewModel.currentStepIndex == 1)
     #expect(viewModel.lastCorrectStepFeedbackEvent?.midiNotes == [60])
+    #expect(viewModel.lastCorrectStepFeedbackEvent?.stepOccurrenceGeneration == 1)
 }
 
 @Test

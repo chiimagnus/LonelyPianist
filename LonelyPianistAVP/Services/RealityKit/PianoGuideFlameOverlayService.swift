@@ -1,7 +1,6 @@
 import Foundation
 import RealityKit
 import SwiftUI
-import UIKit
 
 @MainActor
 final class PianoGuideFlameOverlayService {
@@ -323,17 +322,25 @@ final class PianoGuideFlameOverlayService {
         component.birthDirection = .local
         component.birthLocation = .surface
         component.emissionDirection = SIMD3<Float>(0, 1, 0)
+        component.fieldSimulationSpace = .local
+        component.particlesInheritTransform = true
         component.speed = parameters.speed
         component.speedVariation = parameters.speedVariation
         component.isEmitting = true
         component.mainEmitter.birthRate = parameters.birthRate * birthRateMultiplier
         component.mainEmitter.size = parameters.particleSize * sizeMultiplier
-        component.mainEmitter.lifeSpan = Double(parameters.lifetime)
+        component.mainEmitter.lifeSpan = parameters.lifetime
         component.mainEmitter.blendMode = .additive
         component.mainEmitter.isLightingEnabled = false
-        component.mainEmitter.color = .evolving(
-            start: .single(parameters.colorProfile.start.uiColor(opacityMultiplier: opacityMultiplier)),
-            end: .single(parameters.colorProfile.end.uiColor(opacityMultiplier: opacityMultiplier))
+        typealias ParticleEmitter = ParticleEmitterComponent.ParticleEmitter
+        typealias ParticleColor = ParticleEmitter.ParticleColor
+        typealias ParticleColorValue = ParticleColor.ColorValue
+
+        let startColor = ParticleEmitter.Color(parameters.colorProfile.start.swiftUIColor(opacityMultiplier: opacityMultiplier))
+        let endColor = ParticleEmitter.Color(parameters.colorProfile.end.swiftUIColor(opacityMultiplier: opacityMultiplier))
+        component.mainEmitter.color = ParticleColor.evolving(
+            start: ParticleColorValue.single(startColor),
+            end: ParticleColorValue.single(endColor)
         )
         if restart {
             component.restart()
@@ -344,12 +351,12 @@ final class PianoGuideFlameOverlayService {
 }
 
 private extension FlameRGBA {
-    func uiColor(opacityMultiplier: Float) -> UIColor {
-        UIColor(
-            red: CGFloat(red),
-            green: CGFloat(green),
-            blue: CGFloat(blue),
-            alpha: CGFloat(min(1, max(0, alpha * opacityMultiplier)))
+    func swiftUIColor(opacityMultiplier: Float) -> Color {
+        Color(
+            red: Double(red),
+            green: Double(green),
+            blue: Double(blue),
+            opacity: Double(min(1, max(0, alpha * opacityMultiplier)))
         )
     }
 }

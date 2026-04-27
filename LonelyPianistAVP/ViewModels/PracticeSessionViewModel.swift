@@ -5,6 +5,7 @@ import simd
 
 struct PracticeCorrectStepFeedbackEvent: Equatable {
     let generation: Int
+    let stepOccurrenceGeneration: Int
     let midiNotes: Set<Int>
 }
 
@@ -722,6 +723,7 @@ final class PracticeSessionViewModel {
         correctStepFeedbackGeneration += 1
         lastCorrectStepFeedbackEvent = PracticeCorrectStepFeedbackEvent(
             generation: correctStepFeedbackGeneration,
+            stepOccurrenceGeneration: currentStepOccurrenceGeneration,
             midiNotes: Set(step.notes.map(\.midiNote))
         )
     }

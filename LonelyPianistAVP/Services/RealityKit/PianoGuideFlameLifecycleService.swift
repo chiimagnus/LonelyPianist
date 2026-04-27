@@ -65,7 +65,7 @@ struct PianoGuideFlameLifecycleService {
 
         let targets = event.midiNotes.filter { midiNote in
             guard let state = activeStates[midiNote] else { return false }
-            return state.isFadingOut == false
+            return state.isFadingOut == false && state.stepOccurrenceGeneration == event.stepOccurrenceGeneration
         }
         return PianoGuideFlameBoostPlan(processedGeneration: event.generation, targetMIDINotes: Set(targets))
     }

@@ -43,7 +43,7 @@ func lifecycleUpdatesSameMIDINoteForSameGeneration() {
 @Test
 func boostPlanIgnoresFadingOrAlreadyProcessedEvents() {
     let service = PianoGuideFlameLifecycleService()
-    let event = PracticeCorrectStepFeedbackEvent(generation: 4, midiNotes: [60, 64])
+    let event = PracticeCorrectStepFeedbackEvent(generation: 4, stepOccurrenceGeneration: 1, midiNotes: [60, 64])
     let active = [
         60: PianoGuideFlameLifecycleState(midiNote: 60, stepOccurrenceGeneration: 1, isFadingOut: false),
         64: PianoGuideFlameLifecycleState(midiNote: 64, stepOccurrenceGeneration: 1, isFadingOut: true),
@@ -55,6 +55,21 @@ func boostPlanIgnoresFadingOrAlreadyProcessedEvents() {
     #expect(first.processedGeneration == 4)
     #expect(first.targetMIDINotes == [60])
     #expect(second.targetMIDINotes.isEmpty)
+}
+
+
+@Test
+func boostPlanIgnoresStaleStepOccurrenceGeneration() {
+    let service = PianoGuideFlameLifecycleService()
+    let event = PracticeCorrectStepFeedbackEvent(generation: 5, stepOccurrenceGeneration: 1, midiNotes: [60])
+    let active = [
+        60: PianoGuideFlameLifecycleState(midiNote: 60, stepOccurrenceGeneration: 2, isFadingOut: false),
+    ]
+
+    let plan = service.boostPlan(event: event, activeStates: active, processedGeneration: nil)
+
+    #expect(plan.processedGeneration == 5)
+    #expect(plan.targetMIDINotes.isEmpty)
 }
 
 @Test

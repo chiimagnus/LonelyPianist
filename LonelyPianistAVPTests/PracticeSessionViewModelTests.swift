@@ -29,6 +29,7 @@ func correctStepEventCapturesMIDINotesBeforeAdvance() async {
 
     #expect(viewModel.currentStepIndex == 1)
     #expect(viewModel.lastCorrectStepFeedbackEvent?.midiNotes == [60])
+    #expect(viewModel.lastCorrectStepFeedbackEvent?.stepOccurrenceGeneration == 1)
 }
 
 @Test
@@ -56,6 +57,7 @@ func correctStepEventCapturesChordNotes() async {
     await settleTaskQueue()
 
     #expect(viewModel.lastCorrectStepFeedbackEvent?.midiNotes == [60, 64])
+    #expect(viewModel.lastCorrectStepFeedbackEvent?.stepOccurrenceGeneration == 1)
 }
 
 @Test
