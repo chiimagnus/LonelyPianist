@@ -3,6 +3,11 @@ import Observation
 import os
 import simd
 
+struct PracticeCorrectStepFeedbackEvent: Equatable {
+    let generation: Int
+    let midiNotes: Set<Int>
+}
+
 @MainActor
 @Observable
 final class PracticeSessionViewModel {
@@ -38,6 +43,8 @@ final class PracticeSessionViewModel {
     private(set) var feedbackState: VisualFeedbackState = .none
     private(set) var isSustainPedalDown = false
     private(set) var autoplayHighlightedMIDINotes: Set<Int> = []
+    private(set) var lastCorrectStepFeedbackEvent: PracticeCorrectStepFeedbackEvent?
+    private(set) var currentStepOccurrenceGeneration = 0
     private(set) var audioRecognitionErrorMessage: String?
     private(set) var audioPlaybackErrorMessage: String?
     var audioErrorMessage: String? {
@@ -78,6 +85,7 @@ final class PracticeSessionViewModel {
     private var pendingReleaseOffTickByMIDI: [Int: Int] = [:]
     private var pendingAutoplayOnsetsByTick: [Int: [PracticeStepNote]] = [:]
     private var audioRecognitionGeneration = 0
+    private var correctStepFeedbackGeneration = 0
     private var isAudioRecognitionRunning = false
     private var audioRecognitionSuppressUntil: Date?
     private let audioRecognitionSuppressDuration: TimeInterval = 0.6
@@ -228,6 +236,9 @@ final class PracticeSessionViewModel {
             currentStepIndex = 0
             pressedNotes.removeAll()
             feedbackState = .none
+            lastCorrectStepFeedbackEvent = nil
+            correctStepFeedbackGeneration = 0
+            currentStepOccurrenceGeneration = 0
         }
 
         let tick = steps.indices.contains(currentStepIndex) ? steps[currentStepIndex].tick : 0
@@ -235,8 +246,13 @@ final class PracticeSessionViewModel {
 
         if steps.isEmpty {
             state = .idle
+            currentStepOccurrenceGeneration = 0
         } else if state != .completed {
             state = .ready
+        }
+
+        if shouldResetProgress, currentStep != nil {
+            markCurrentStepOccurrenceChangedIfVisible()
         }
 
         refreshAudioRecognitionForCurrentState()
@@ -281,6 +297,9 @@ final class PracticeSessionViewModel {
         keyboardGeometry = nil
         pressedNotes.removeAll()
         feedbackState = .none
+        lastCorrectStepFeedbackEvent = nil
+        correctStepFeedbackGeneration = 0
+        currentStepOccurrenceGeneration = 0
         isSustainPedalDown = false
         audioRecognitionErrorMessage = nil
         audioPlaybackErrorMessage = nil
@@ -305,6 +324,9 @@ final class PracticeSessionViewModel {
         guard state == .ready, steps.isEmpty == false else { return }
         currentStepIndex = 0
         state = .guiding(stepIndex: currentStepIndex)
+        if currentStepOccurrenceGeneration == 0 {
+            markCurrentStepOccurrenceChangedIfVisible()
+        }
         if autoplayState == .playing {
             refreshAudioRecognitionForCurrentState()
             prepareAutoplayOnsetsForCurrentStep()
@@ -382,6 +404,7 @@ final class PracticeSessionViewModel {
                 if isMatched {
                     setFeedback(.correct)
                     if autoplayState == .off {
+                        publishCorrectStepFeedback(for: currentStep)
                         advanceToNextStep()
                     }
                 } else {
@@ -412,6 +435,7 @@ final class PracticeSessionViewModel {
         if currentStepIndex + 1 < steps.count {
             currentStepIndex += 1
             state = .guiding(stepIndex: currentStepIndex)
+            markCurrentStepOccurrenceChangedIfVisible()
             if autoplayState == .playing {
                 refreshAudioRecognitionForCurrentState()
                 prepareAutoplayOnsetsForCurrentStep()
@@ -689,6 +713,19 @@ final class PracticeSessionViewModel {
         return String(describing: error)
     }
 
+    private func markCurrentStepOccurrenceChangedIfVisible() {
+        guard currentStep != nil else { return }
+        currentStepOccurrenceGeneration += 1
+    }
+
+    private func publishCorrectStepFeedback(for step: PracticeStep) {
+        correctStepFeedbackGeneration += 1
+        lastCorrectStepFeedbackEvent = PracticeCorrectStepFeedbackEvent(
+            generation: correctStepFeedbackGeneration,
+            midiNotes: Set(step.notes.map(\.midiNote))
+        )
+    }
+
     private func setFeedback(_ state: VisualFeedbackState, duration: TimeInterval = 0.25) {
         feedbackState = state
         feedbackResetTask?.cancel()
@@ -872,6 +909,7 @@ final class PracticeSessionViewModel {
                     at: event.timestamp
                 )
                 setFeedback(.correct)
+                publishCorrectStepFeedback(for: currentStep)
                 advanceToNextStep()
                 decisionLogger.debug("audio matched advanced generation=\(event.generation, privacy: .public)")
             case .wrong:
