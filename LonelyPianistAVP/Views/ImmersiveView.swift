@@ -3,7 +3,7 @@ import SwiftUI
 
 struct ImmersiveView: View {
     @Bindable var viewModel: ARGuideViewModel
-    @State private var overlayController = PianoGuideOverlayController()
+    @State private var flameOverlayService = PianoGuideFlameOverlayService()
     @State private var calibrationOverlayController = CalibrationOverlayController()
     @State private var keyboardAxesDebugOverlayController = KeyboardAxesDebugOverlayController()
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
@@ -33,10 +33,11 @@ struct ImmersiveView: View {
                 keyboardFrame: viewModel.practiceSessionViewModel.calibration?.keyboardFrame,
                 content: content
             )
-            overlayController.updateHighlights(
+            flameOverlayService.updateHighlights(
                 currentStep: viewModel.practiceSessionViewModel.currentStep,
                 keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
-                feedbackState: viewModel.practiceSessionViewModel.feedbackState,
+                stepOccurrenceGeneration: viewModel.practiceSessionViewModel.currentStepOccurrenceGeneration,
+                correctFeedbackEvent: viewModel.practiceSessionViewModel.lastCorrectStepFeedbackEvent,
                 content: content
             )
         } update: { content in
@@ -53,10 +54,11 @@ struct ImmersiveView: View {
                 keyboardFrame: viewModel.practiceSessionViewModel.calibration?.keyboardFrame,
                 content: content
             )
-            overlayController.updateHighlights(
+            flameOverlayService.updateHighlights(
                 currentStep: viewModel.practiceSessionViewModel.currentStep,
                 keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
-                feedbackState: viewModel.practiceSessionViewModel.feedbackState,
+                stepOccurrenceGeneration: viewModel.practiceSessionViewModel.currentStepOccurrenceGeneration,
+                correctFeedbackEvent: viewModel.practiceSessionViewModel.lastCorrectStepFeedbackEvent,
                 content: content
             )
         }

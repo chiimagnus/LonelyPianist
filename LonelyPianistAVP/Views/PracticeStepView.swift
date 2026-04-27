@@ -151,13 +151,9 @@ struct PracticeStepView: View {
     }
 
     private var highlightedMIDINotes: Set<Int> {
-        if isAutoplayEnabled {
-            return viewModel.practiceSessionViewModel.autoplayHighlightedMIDINotes
-        }
-        guard let currentStep = viewModel.practiceSessionViewModel.currentStep else {
-            return []
-        }
-        return Set(currentStep.notes.map(\.midiNote))
+        PracticeStepVisualGuideService().highlightedMIDINotes(
+            for: viewModel.practiceSessionViewModel.currentStep
+        )
     }
 
     private var fingeringByMIDINote: [Int: String] {
