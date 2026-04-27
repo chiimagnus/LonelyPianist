@@ -2,6 +2,7 @@ import Foundation
 @testable import LonelyPianistAVP
 import Testing
 
+@MainActor
 struct MusicXMLParserDynamicsTests {
     @Test
     func parserParsesDirectionTypeDynamicsMarkIntoDynamicEvents() throws {

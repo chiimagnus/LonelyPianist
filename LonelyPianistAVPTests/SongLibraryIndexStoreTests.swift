@@ -3,6 +3,7 @@ import Foundation
 import Testing
 
 @Test
+@MainActor
 func songLibraryIndexStoreLoadReturnsEmptyWhenFileMissing() throws {
     let documentsURL = try makeTemporaryDirectory(prefix: "SongLibraryIndexStoreTests")
     defer { try? FileManager.default.removeItem(at: documentsURL) }
@@ -16,6 +17,7 @@ func songLibraryIndexStoreLoadReturnsEmptyWhenFileMissing() throws {
 }
 
 @Test
+@MainActor
 func songLibraryIndexStoreSaveAndLoadRoundTrip() throws {
     let documentsURL = try makeTemporaryDirectory(prefix: "SongLibraryIndexStoreTests")
     defer { try? FileManager.default.removeItem(at: documentsURL) }
@@ -47,6 +49,7 @@ func songLibraryIndexStoreSaveAndLoadRoundTrip() throws {
 }
 
 @Test
+@MainActor
 func songLibraryIndexStoreLoadReturnsEmptyWhenFileIsEmpty() throws {
     let documentsURL = try makeTemporaryDirectory(prefix: "SongLibraryIndexStoreTests")
     defer { try? FileManager.default.removeItem(at: documentsURL) }

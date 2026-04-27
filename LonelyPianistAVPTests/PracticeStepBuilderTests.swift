@@ -2,6 +2,7 @@
 import Testing
 
 @Test
+@MainActor
 func buildStepsGroupsNotesByTickAndMergesHands() {
     let score = MusicXMLScore(notes: [
         MusicXMLNoteEvent(
@@ -67,6 +68,7 @@ func buildStepsGroupsNotesByTickAndMergesHands() {
 }
 
 @Test
+@MainActor
 func buildStepsFiltersRestAndOutOfRangeNotes() {
     let score = MusicXMLScore(notes: [
         MusicXMLNoteEvent(
@@ -131,6 +133,7 @@ func buildStepsFiltersRestAndOutOfRangeNotes() {
 }
 
 @Test
+@MainActor
 func buildStepsSkipsTieStopEvents() {
     let score = MusicXMLScore(notes: [
         MusicXMLNoteEvent(
@@ -168,6 +171,7 @@ func buildStepsSkipsTieStopEvents() {
 }
 
 @Test
+@MainActor
 func buildStepsIncludesGraceNotesWhenEnabled() {
     let score = MusicXMLScore(notes: [
         MusicXMLNoteEvent(
@@ -212,6 +216,7 @@ func buildStepsIncludesGraceNotesWhenEnabled() {
 }
 
 @Test
+@MainActor
 func buildStepsSetsOnTickOffsetsForArpeggiateChordWhenEnabled() {
     let score = MusicXMLScore(notes: [
         MusicXMLNoteEvent(
@@ -255,6 +260,7 @@ func buildStepsSetsOnTickOffsetsForArpeggiateChordWhenEnabled() {
 }
 
 @Test
+@MainActor
 func buildStepsCarriesFingeringTextIntoStepNotes() {
     let score = MusicXMLScore(notes: [
         MusicXMLNoteEvent(

@@ -2,6 +2,7 @@
 import Testing
 
 @Test
+@MainActor
 func velocityMapsToExpectedIntensityBands() {
     let service = PianoGuideFlameParameterService()
 
@@ -17,6 +18,7 @@ func velocityMapsToExpectedIntensityBands() {
 }
 
 @Test
+@MainActor
 func strongerVelocityProducesStrongerFlameParameters() {
     let service = PianoGuideFlameParameterService()
     let soft = service.parameters(for: 30)
@@ -32,6 +34,7 @@ func strongerVelocityProducesStrongerFlameParameters() {
 }
 
 @Test
+@MainActor
 func bandInternalVelocityTuningIsMonotonic() {
     let service = PianoGuideFlameParameterService()
     let lower = service.parameters(for: 72)
@@ -44,6 +47,7 @@ func bandInternalVelocityTuningIsMonotonic() {
 }
 
 @Test
+@MainActor
 func correctBoostRaisesActivityWithoutChangingBand() {
     let service = PianoGuideFlameParameterService()
     let base = service.parameters(for: 88)

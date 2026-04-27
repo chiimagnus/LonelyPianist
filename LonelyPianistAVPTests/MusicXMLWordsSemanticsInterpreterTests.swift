@@ -3,6 +3,7 @@ import Foundation
 import Testing
 
 @Test
+@MainActor
 func wordsSemanticsDerivesPedalEventsFromPedAndAsterisk() {
     let interpreter = MusicXMLWordsSemanticsInterpreter()
     let result = interpreter.interpret(
@@ -21,6 +22,7 @@ func wordsSemanticsDerivesPedalEventsFromPedAndAsterisk() {
 }
 
 @Test
+@MainActor
 func wordsSemanticsDoesNotDerivePedalEventsFromPedSimile() {
     let interpreter = MusicXMLWordsSemanticsInterpreter()
     let result = interpreter.interpret(
@@ -38,6 +40,7 @@ func wordsSemanticsDoesNotDerivePedalEventsFromPedSimile() {
 }
 
 @Test
+@MainActor
 func wordsSemanticsDerivesTempoRampForRitWhenTargetIsSlower() {
     let interpreter = MusicXMLWordsSemanticsInterpreter()
     let result = interpreter.interpret(
@@ -70,6 +73,7 @@ func wordsSemanticsDerivesTempoRampForRitWhenTargetIsSlower() {
 }
 
 @Test
+@MainActor
 func wordsSemanticsDoesNotDeriveTempoRampForRitWhenTargetIsFaster() {
     let interpreter = MusicXMLWordsSemanticsInterpreter()
     let result = interpreter.interpret(

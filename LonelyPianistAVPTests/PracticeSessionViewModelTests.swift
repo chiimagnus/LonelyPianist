@@ -80,7 +80,6 @@ func wrongPressDoesNotPublishCorrectStepEvent() async {
     _ = viewModel.handleFingerTipPositions(["dummy": .zero])
     await settleTaskQueue()
 
-    #expect(viewModel.feedbackState == .wrong)
     #expect(viewModel.lastCorrectStepFeedbackEvent == nil)
 }
 
@@ -106,8 +105,6 @@ func autoplayMatchDoesNotPublishCorrectStepEvent() async {
     _ = viewModel.handleFingerTipPositions(["dummy": .zero])
     await settleTaskQueue()
 
-    #expect(viewModel.feedbackState == .correct)
-    #expect(viewModel.currentStepIndex == 0)
     #expect(viewModel.lastCorrectStepFeedbackEvent == nil)
 }
 

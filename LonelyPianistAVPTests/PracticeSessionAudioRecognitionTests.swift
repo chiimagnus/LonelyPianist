@@ -4,6 +4,7 @@ import simd
 import Testing
 
 @Test
+@MainActor
 func fakeAudioRecognitionServiceEmitsEventToConsumer() async {
     let service = FakePracticeAudioRecognitionService()
     let event = DetectedNoteEvent(
@@ -16,7 +17,7 @@ func fakeAudioRecognitionServiceEmitsEventToConsumer() async {
         source: .audio
     )
 
-    let consumeTask = Task<DetectedNoteEvent?, Never> {
+    let consumeTask = Task<DetectedNoteEvent?, Never> { @MainActor in
         for await next in service.events {
             return next
         }
@@ -30,6 +31,7 @@ func fakeAudioRecognitionServiceEmitsEventToConsumer() async {
 }
 
 @Test
+@MainActor
 func fakeAudioRecognitionServiceRecordsLifecycleCalls() async throws {
     let service = FakePracticeAudioRecognitionService()
     let now = Date(timeIntervalSince1970: 2000)

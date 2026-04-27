@@ -3,6 +3,7 @@ import Foundation
 import Testing
 
 @Test
+@MainActor
 func storedWorldAnchorCalibrationSupportsCodableRoundTrip() throws {
     let calibration = try StoredWorldAnchorCalibration(
         a0AnchorID: #require(UUID(uuidString: "11111111-2222-3333-4444-555555555555")),
@@ -18,6 +19,7 @@ func storedWorldAnchorCalibrationSupportsCodableRoundTrip() throws {
 }
 
 @Test
+@MainActor
 func worldAnchorCalibrationStoreReturnsNilWhenFileMissing() throws {
     let tempDirectory = try makeTemporaryDocumentsDirectory()
     defer { try? FileManager.default.removeItem(at: tempDirectory) }
@@ -33,6 +35,7 @@ func worldAnchorCalibrationStoreReturnsNilWhenFileMissing() throws {
 }
 
 @Test
+@MainActor
 func worldAnchorCalibrationStoreCanSaveAndLoadRoundTrip() throws {
     let tempDirectory = try makeTemporaryDocumentsDirectory()
     defer { try? FileManager.default.removeItem(at: tempDirectory) }

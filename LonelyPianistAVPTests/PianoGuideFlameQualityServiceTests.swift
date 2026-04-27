@@ -2,6 +2,7 @@
 import Testing
 
 @Test
+@MainActor
 func qualityTierUsesFullQualityForUpToSixNotes() {
     let service = PianoGuideFlameQualityService()
 
@@ -10,6 +11,7 @@ func qualityTierUsesFullQualityForUpToSixNotes() {
 }
 
 @Test
+@MainActor
 func qualityTierReducesForSevenOrMoreNotes() {
     let service = PianoGuideFlameQualityService()
 
@@ -19,6 +21,7 @@ func qualityTierReducesForSevenOrMoreNotes() {
 }
 
 @Test
+@MainActor
 func qualityScalingNeverHidesFlameCompletely() {
     let parameterService = PianoGuideFlameParameterService()
     let qualityService = PianoGuideFlameQualityService()

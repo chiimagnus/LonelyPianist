@@ -2,6 +2,7 @@ import Foundation
 @testable import LonelyPianistAVP
 import Testing
 
+@MainActor
 struct MusicXMLParserFermataArpeggiateTests {
     @Test
     func parserParsesNoteFermataAndArpeggiate() throws {

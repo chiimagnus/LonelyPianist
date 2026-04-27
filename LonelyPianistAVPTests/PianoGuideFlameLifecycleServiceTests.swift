@@ -3,6 +3,7 @@ import simd
 import Testing
 
 @Test
+@MainActor
 func lifecyclePlansFadeInForAddedNotes() {
     let service = PianoGuideFlameLifecycleService()
     let actions = service.transitionActions(activeStates: [:], descriptors: [descriptor(midiNote: 60, generation: 1)])
@@ -11,6 +12,7 @@ func lifecyclePlansFadeInForAddedNotes() {
 }
 
 @Test
+@MainActor
 func lifecyclePlansFadeOutForRemovedNotes() {
     let service = PianoGuideFlameLifecycleService()
     let active = [60: PianoGuideFlameLifecycleState(midiNote: 60, stepOccurrenceGeneration: 1, isFadingOut: false)]
@@ -21,6 +23,7 @@ func lifecyclePlansFadeOutForRemovedNotes() {
 }
 
 @Test
+@MainActor
 func lifecycleRetriggersSameMIDINoteForNewGeneration() {
     let service = PianoGuideFlameLifecycleService()
     let active = [60: PianoGuideFlameLifecycleState(midiNote: 60, stepOccurrenceGeneration: 1, isFadingOut: false)]
@@ -31,6 +34,7 @@ func lifecycleRetriggersSameMIDINoteForNewGeneration() {
 }
 
 @Test
+@MainActor
 func lifecycleUpdatesSameMIDINoteForSameGeneration() {
     let service = PianoGuideFlameLifecycleService()
     let active = [60: PianoGuideFlameLifecycleState(midiNote: 60, stepOccurrenceGeneration: 1, isFadingOut: false)]
@@ -41,6 +45,7 @@ func lifecycleUpdatesSameMIDINoteForSameGeneration() {
 }
 
 @Test
+@MainActor
 func boostPlanIgnoresFadingOrAlreadyProcessedEvents() {
     let service = PianoGuideFlameLifecycleService()
     let event = PracticeCorrectStepFeedbackEvent(generation: 4, stepOccurrenceGeneration: 1, midiNotes: [60, 64])
@@ -59,6 +64,7 @@ func boostPlanIgnoresFadingOrAlreadyProcessedEvents() {
 
 
 @Test
+@MainActor
 func boostPlanIgnoresStaleStepOccurrenceGeneration() {
     let service = PianoGuideFlameLifecycleService()
     let event = PracticeCorrectStepFeedbackEvent(generation: 5, stepOccurrenceGeneration: 1, midiNotes: [60])
@@ -73,6 +79,7 @@ func boostPlanIgnoresStaleStepOccurrenceGeneration() {
 }
 
 @Test
+@MainActor
 func clearPlanCancelsFadeAndBoostTasks() {
     let service = PianoGuideFlameLifecycleService()
     let plan = service.clearPlan(fadeTaskMIDINotes: [60], boostTaskMIDINotes: [64])
