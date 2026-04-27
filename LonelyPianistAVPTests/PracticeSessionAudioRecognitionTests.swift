@@ -153,6 +153,7 @@ func matchingAudioEventAdvancesStep() async {
     await settleTaskQueue()
 
     #expect(viewModel.currentStepIndex == 1)
+    #expect(viewModel.lastCorrectStepFeedbackEvent?.midiNotes == [60])
 }
 
 @Test

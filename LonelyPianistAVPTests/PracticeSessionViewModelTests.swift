@@ -5,6 +5,143 @@ import Testing
 
 private let defaultTempoScope = MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
 
+
+@Test
+@MainActor
+func correctStepEventCapturesMIDINotesBeforeAdvance() async {
+    let viewModel = makePracticeSessionViewModel(
+        pressDetectionService: ConstantPressDetectionService(pressedNotes: [60]),
+        chordAttemptAccumulator: AlwaysMatchChordAttemptAccumulator(),
+        sleeper: TaskSleeper()
+    )
+    viewModel.setSteps([
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+        PracticeStep(tick: 1, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+    ])
+    viewModel.startGuidingIfReady()
+    viewModel.applyKeyboardGeometry(
+        makeDummyKeyboardGeometry(),
+        calibration: PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0)
+    )
+
+    _ = viewModel.handleFingerTipPositions(["dummy": .zero])
+    await settleTaskQueue()
+
+    #expect(viewModel.currentStepIndex == 1)
+    #expect(viewModel.lastCorrectStepFeedbackEvent?.midiNotes == [60])
+}
+
+@Test
+@MainActor
+func correctStepEventCapturesChordNotes() async {
+    let viewModel = makePracticeSessionViewModel(
+        pressDetectionService: ConstantPressDetectionService(pressedNotes: [60, 64]),
+        chordAttemptAccumulator: AlwaysMatchChordAttemptAccumulator(),
+        sleeper: TaskSleeper()
+    )
+    viewModel.setSteps([
+        PracticeStep(tick: 0, notes: [
+            PracticeStepNote(midiNote: 60, staff: nil),
+            PracticeStepNote(midiNote: 64, staff: nil),
+        ]),
+        PracticeStep(tick: 1, notes: [PracticeStepNote(midiNote: 67, staff: nil)]),
+    ])
+    viewModel.startGuidingIfReady()
+    viewModel.applyKeyboardGeometry(
+        makeDummyKeyboardGeometry(),
+        calibration: PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0)
+    )
+
+    _ = viewModel.handleFingerTipPositions(["dummy": .zero])
+    await settleTaskQueue()
+
+    #expect(viewModel.lastCorrectStepFeedbackEvent?.midiNotes == [60, 64])
+}
+
+@Test
+@MainActor
+func wrongPressDoesNotPublishCorrectStepEvent() async {
+    let viewModel = makePracticeSessionViewModel(
+        pressDetectionService: ConstantPressDetectionService(pressedNotes: [72]),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: TaskSleeper()
+    )
+    viewModel.setSteps([
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+    ])
+    viewModel.startGuidingIfReady()
+    viewModel.applyKeyboardGeometry(
+        makeDummyKeyboardGeometry(),
+        calibration: PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0)
+    )
+
+    _ = viewModel.handleFingerTipPositions(["dummy": .zero])
+    await settleTaskQueue()
+
+    #expect(viewModel.feedbackState == .wrong)
+    #expect(viewModel.lastCorrectStepFeedbackEvent == nil)
+}
+
+@Test
+@MainActor
+func autoplayMatchDoesNotPublishCorrectStepEvent() async {
+    let viewModel = makePracticeSessionViewModel(
+        pressDetectionService: ConstantPressDetectionService(pressedNotes: [60]),
+        chordAttemptAccumulator: AlwaysMatchChordAttemptAccumulator(),
+        sleeper: TaskSleeper()
+    )
+    viewModel.setSteps([
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+        PracticeStep(tick: 1, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+    ])
+    viewModel.setAutoplayEnabled(true)
+    viewModel.startGuidingIfReady()
+    viewModel.applyKeyboardGeometry(
+        makeDummyKeyboardGeometry(),
+        calibration: PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0)
+    )
+
+    _ = viewModel.handleFingerTipPositions(["dummy": .zero])
+    await settleTaskQueue()
+
+    #expect(viewModel.feedbackState == .correct)
+    #expect(viewModel.currentStepIndex == 0)
+    #expect(viewModel.lastCorrectStepFeedbackEvent == nil)
+}
+
+@Test
+@MainActor
+func currentStepOccurrenceGenerationChangesForVisibleStepOccurrences() {
+    let viewModel = makePracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: TaskSleeper()
+    )
+    let steps = [
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+        PracticeStep(tick: 1, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+    ]
+
+    viewModel.setSteps(steps)
+    let firstGeneration = viewModel.currentStepOccurrenceGeneration
+    viewModel.startGuidingIfReady()
+    #expect(viewModel.currentStepOccurrenceGeneration == firstGeneration)
+
+    viewModel.skip()
+    let secondGeneration = viewModel.currentStepOccurrenceGeneration
+    #expect(secondGeneration > firstGeneration)
+
+    viewModel.skip()
+    #expect(viewModel.currentStep == nil)
+    #expect(viewModel.currentStepOccurrenceGeneration == secondGeneration)
+
+    viewModel.resetSession()
+    #expect(viewModel.currentStepOccurrenceGeneration == 0)
+
+    viewModel.setSteps(steps)
+    #expect(viewModel.currentStepOccurrenceGeneration > 0)
+}
+
 @Test
 @MainActor
 func markCorrectSchedulesFeedbackResetWithExpectedDuration() async {
