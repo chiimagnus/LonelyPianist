@@ -1,4 +1,3 @@
-import Foundation
 import RealityKit
 import simd
 import SwiftUI
@@ -7,11 +6,10 @@ import SwiftUI
 final class VirtualPianoOverlayController {
     private var rootEntity = Entity()
     private var hasAttachedRoot = false
-    private var reticleEntity: ModelEntity?
     private var keyboardRootEntity: Entity?
 
     func update(
-        placementState: VirtualPianoPlacementViewModel.PlacementState,
+        isEnabled: Bool,
         keyboardGeometry: PianoKeyboardGeometry?,
         content: RealityViewContent?
     ) {
@@ -20,70 +18,51 @@ final class VirtualPianoOverlayController {
             hasAttachedRoot = true
         }
 
-        switch placementState {
-            case .disabled:
-                clearReticle()
-                clearKeyboard()
-
-            case let .placing(reticlePoint):
-                clearKeyboard()
-                if let reticlePoint {
-                    showReticle(at: reticlePoint)
-                } else {
-                    clearReticle()
-                }
-
-            case .placed:
-                clearReticle()
-                if let keyboardGeometry {
-                    showKeyboard(geometry: keyboardGeometry)
-                }
+        guard isEnabled, let keyboardGeometry else {
+            clearKeyboard()
+            return
         }
-    }
 
-    private func showReticle(at point: SIMD3<Float>) {
-        let reticle: ModelEntity
-        if let existing = reticleEntity {
-            reticle = existing
-        } else {
-            let mesh = MeshResource.generateSphere(radius: 0.015)
-            let material = SimpleMaterial(color: .white.withAlphaComponent(0.8), isMetallic: false)
-            reticle = ModelEntity(mesh: mesh, materials: [material])
-            rootEntity.addChild(reticle)
-            reticleEntity = reticle
-        }
-        reticle.position = point
-    }
-
-    private func clearReticle() {
-        reticleEntity?.removeFromParent()
-        reticleEntity = nil
+        showKeyboard(geometry: keyboardGeometry)
     }
 
     private func showKeyboard(geometry: PianoKeyboardGeometry) {
         guard keyboardRootEntity == nil else { return }
 
+        let totalLength = VirtualPianoKeyGeometryService.totalKeyboardLengthMeters
+        let keyDepth = VirtualPianoKeyGeometryService.whiteKeyDepthMeters
+        let keyboardCenterLocal = SIMD3<Float>(totalLength / 2, 0, -keyDepth / 2)
+
+        let worldFromKeyboard = geometry.frame.worldFromKeyboard
+        let xAxisWorld = SIMD3<Float>(worldFromKeyboard.columns.0.x, worldFromKeyboard.columns.0.y, worldFromKeyboard.columns.0.z)
+        let yAxisWorld = SIMD3<Float>(worldFromKeyboard.columns.1.x, worldFromKeyboard.columns.1.y, worldFromKeyboard.columns.1.z)
+        let zAxisWorld = SIMD3<Float>(worldFromKeyboard.columns.2.x, worldFromKeyboard.columns.2.y, worldFromKeyboard.columns.2.z)
+        let originWorld = SIMD3<Float>(worldFromKeyboard.columns.3.x, worldFromKeyboard.columns.3.y, worldFromKeyboard.columns.3.z)
+        let centerWorld = originWorld
+            + xAxisWorld * keyboardCenterLocal.x
+            + yAxisWorld * keyboardCenterLocal.y
+            + zAxisWorld * keyboardCenterLocal.z
+
+        var kbWorldFromCenter = worldFromKeyboard
+        kbWorldFromCenter.columns.3 = SIMD4<Float>(centerWorld, 1)
+
         let kbRoot = Entity()
-        kbRoot.transform = Transform(matrix: geometry.frame.worldFromKeyboard)
+        kbRoot.transform = Transform(matrix: kbWorldFromCenter)
+
+        let kbContent = Entity()
+        kbContent.position = -keyboardCenterLocal
 
         for key in geometry.keys {
             let keyEntity = makeKeyEntity(for: key)
-            kbRoot.addChild(keyEntity)
+            kbContent.addChild(keyEntity)
         }
 
-        let totalLength = VirtualPianoKeyGeometryService.totalKeyboardLengthMeters
-        let keyDepth = VirtualPianoKeyGeometryService.whiteKeyDepthMeters
-        let collisionSize = SIMD3<Float>(totalLength, 0.05, keyDepth)
-        let collisionCenter = SIMD3<Float>(totalLength / 2, -0.01, -keyDepth / 2)
-        let collisionShape = ShapeResource.generateBox(size: collisionSize)
-            .offsetBy(translation: collisionCenter)
-        kbRoot.components.set(CollisionComponent(shapes: [collisionShape]))
-        kbRoot.components.set(InputTargetComponent())
-        kbRoot.components.set(ManipulationComponent())
-        kbRoot.components.set(PhysicsBodyComponent(mode: .kinematic))
+        kbRoot.addChild(kbContent)
 
         rootEntity.addChild(kbRoot)
         keyboardRootEntity = kbRoot
+
+        animateKeyboardIn(kbRoot)
     }
 
     private func clearKeyboard() {
@@ -102,8 +81,16 @@ final class VirtualPianoOverlayController {
         return entity
     }
 
-    func currentKeyboardWorldFromKeyboard() -> simd_float4x4? {
-        guard let keyboardRootEntity else { return nil }
-        return keyboardRootEntity.transformMatrix(relativeTo: nil)
+    private func animateKeyboardIn(_ keyboardRoot: Entity) {
+        let endTransform = keyboardRoot.transform
+        var startTransform = endTransform
+        startTransform.scale = SIMD3<Float>(0.001, 1, 1)
+        keyboardRoot.transform = startTransform
+        _ = keyboardRoot.move(
+            to: endTransform,
+            relativeTo: keyboardRoot.parent,
+            duration: 0.35,
+            timingFunction: .easeOut
+        )
     }
 }

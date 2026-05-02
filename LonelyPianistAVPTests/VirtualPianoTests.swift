@@ -195,68 +195,6 @@ func keyContactDetectionNoFingerNoDown() {
     #expect(result.ended.isEmpty)
 }
 
-// MARK: - VirtualPianoPlacementViewModel Tests
-
-@Test
-@MainActor
-func placementStateTransitions() {
-    let vm = VirtualPianoPlacementViewModel()
-    #expect(vm.state == .disabled)
-    #expect(vm.isPlaced == false)
-    #expect(vm.worldFromKeyboard == nil)
-
-    vm.startPlacing()
-    if case let .placing(reticlePoint) = vm.state {
-        #expect(reticlePoint == nil)
-    } else {
-        Issue.record("Expected .placing state")
-    }
-
-    vm.update(fingerTips: [
-        "right-indexFingerTip": SIMD3<Float>(0.5, 0, 0),
-        "right-thumbTip": SIMD3<Float>(0.5, 0, 0),
-    ])
-    #expect(vm.isPlaced)
-    #expect(vm.worldFromKeyboard != nil)
-}
-
-@Test
-@MainActor
-func placementResetGoesToDisabled() {
-    let vm = VirtualPianoPlacementViewModel()
-    vm.startPlacing()
-    vm.update(fingerTips: [
-        "right-indexFingerTip": SIMD3<Float>(0, 0, 0),
-        "right-thumbTip": SIMD3<Float>(0, 0, 0),
-    ])
-    #expect(vm.isPlaced)
-
-    vm.reset()
-    #expect(vm.state == .disabled)
-    #expect(vm.isPlaced == false)
-}
-
-@Test
-@MainActor
-func placementConfirmSetsOriginAtKeyboardLeftEnd() {
-    let vm = VirtualPianoPlacementViewModel()
-    vm.startPlacing()
-
-    let reticlePoint = SIMD3<Float>(1.0, 0, 0)
-    vm.update(fingerTips: [
-        "right-indexFingerTip": reticlePoint,
-        "right-thumbTip": reticlePoint,
-    ])
-
-    guard let transform = vm.worldFromKeyboard else {
-        Issue.record("Expected placement to succeed")
-        return
-    }
-    let origin = SIMD3<Float>(transform.columns.3.x, transform.columns.3.y, transform.columns.3.z)
-    let halfLength = VirtualPianoKeyGeometryService.totalKeyboardLengthMeters / 2
-    #expect(abs(origin.x - (reticlePoint.x - halfLength)) < 0.001)
-}
-
 @MainActor
 @Test
 func virtualPianoDoesNotTriggerLiveNotesDuringAutoplay() {
@@ -304,11 +242,9 @@ func arGuideViewModelToggleOffClearsVirtualKeyboardAndStopsLiveNotes() {
     let appState = AppState()
     let viewModel = ARGuideViewModel(appState: appState, practiceSessionViewModel: session)
 
-    viewModel.setPracticeVirtualPianoEnabled(true)
-    #expect(viewModel.virtualPianoPlacement.isPlaced)
-    #expect(session.keyboardGeometry != nil)
+    let geometry = makeTestKeyboardGeometry()
+    session.applyVirtualKeyboardGeometry(geometry)
 
-    let geometry = session.keyboardGeometry!
     let c4Key = geometry.key(for: 60)!
     let keyLocalPoint = SIMD3<Float>(c4Key.hitCenterLocal.x, -0.001, c4Key.hitCenterLocal.z)
     let keyWorldPoint = transformPoint(geometry.frame.worldFromKeyboard, keyLocalPoint)

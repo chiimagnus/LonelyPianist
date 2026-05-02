@@ -67,6 +67,7 @@ final class ARGuideViewModel {
     private let appState: AppState
     let practiceSessionViewModel: PracticeSessionViewModel
     private var handTrackingConsumerTask: Task<Void, Never>?
+    private var virtualPianoGuidanceUpdateTask: Task<Void, Never>?
     private var calibrationAnchorCaptureTask: Task<Void, Never>?
     private var calibrationFlowBootstrapTask: Task<Void, Never>?
     private var calibrationGuidedFlowTask: Task<Void, Never>?
@@ -81,7 +82,10 @@ final class ARGuideViewModel {
     private(set) var practiceLocalizationState: PracticeLocalizationState = .idle
     private(set) var calibrationPhase: CalibrationPhase = .capturingA0
     private(set) var isVirtualPianoEnabled = false
-    let virtualPianoPlacement = VirtualPianoPlacementViewModel()
+    let gazePlaneDiskConfirmation = GazePlaneDiskConfirmationViewModel()
+    private let gazePlaneHitTestService = GazePlaneHitTestService()
+    private var latestGazePlaneHit: PlaneHit?
+    private var latestGazeRayOriginWorld: SIMD3<Float>?
 
     init(appState: AppState, practiceSessionViewModel: PracticeSessionViewModel? = nil) {
         self.appState = appState
@@ -154,6 +158,10 @@ final class ARGuideViewModel {
 
     var hasImportedSteps: Bool {
         appState.importedSteps.isEmpty == false
+    }
+
+    var importedSongDisplayName: String? {
+        appState.importedFile?.fileName
     }
 
     var immersiveMode: AppState.ImmersiveMode {
@@ -236,21 +244,84 @@ final class ARGuideViewModel {
     func setPracticeVirtualPianoEnabled(_ isEnabled: Bool) {
         isVirtualPianoEnabled = isEnabled
         if isEnabled {
+            practiceSessionViewModel.stopVirtualPianoInput()
+            practiceSessionViewModel.clearCalibration()
             cancelPracticeLocalizationTask()
+            gazePlaneDiskConfirmation.reset()
+            latestGazePlaneHit = nil
+            startVirtualPianoGuidanceIfNeeded()
             #if DEBUG && targetEnvironment(simulator)
             practiceLocalizationState = .ready
-            virtualPianoPlacement.placeAtDefaultPosition()
-            applyVirtualPianoGeometry()
+            if appState.cachedVirtualPianoWorldAnchorID == nil {
+                applyVirtualPianoGeometryAtDefaultPositionForSimulator()
+            }
             #else
-            practiceLocalizationState = .idle
-            virtualPianoPlacement.startPlacing()
+            if appState.cachedVirtualPianoWorldAnchorID == nil {
+                practiceLocalizationState = .idle
+            }
             #endif
         } else {
             practiceSessionViewModel.stopVirtualPianoInput()
             practiceSessionViewModel.clearCalibration()
             practiceLocalizationState = .idle
-            virtualPianoPlacement.reset()
+            gazePlaneDiskConfirmation.reset()
+            latestGazePlaneHit = nil
+            stopVirtualPianoGuidance()
         }
+    }
+
+    var gazePlaneDiskStatusText: String? {
+        guard isVirtualPianoEnabled else { return nil }
+        if practiceSessionViewModel.keyboardGeometry != nil {
+            return nil
+        }
+
+        let planeState = arTrackingService.providerStateByName["plane"] ?? .idle
+        switch planeState {
+            case .unsupported:
+                return "虚拟钢琴不可用：此设备/环境不支持平面检测。"
+            case .unauthorized:
+                return "虚拟钢琴不可用：请在系统设置中允许本 App 使用“周围环境/世界感知”（worldSensing）。"
+            case let .failed(reason):
+                return "虚拟钢琴不可用：平面检测启动失败（\(reason)）。"
+            default:
+                break
+        }
+
+        let handState = arTrackingService.providerStateByName["hand"] ?? .idle
+        switch handState {
+            case .unsupported:
+                return "虚拟钢琴不可用：此设备不支持手部追踪。"
+            case .unauthorized:
+                return "虚拟钢琴：已检测到平面，但需要 Hand Tracking 才能确认放好双手。"
+            case let .failed(reason):
+                return "虚拟钢琴不可用：手部追踪启动失败（\(reason)）。"
+            default:
+                break
+        }
+
+        return gazePlaneDiskConfirmation.statusText
+    }
+
+    var isGazePlaneDiskVisible: Bool {
+        isVirtualPianoEnabled &&
+            practiceSessionViewModel.keyboardGeometry == nil &&
+            gazePlaneDiskConfirmation.isDiskVisible
+    }
+
+    var gazePlaneDiskWorldTransform: simd_float4x4? {
+        guard isGazePlaneDiskVisible else { return nil }
+        return gazePlaneDiskConfirmation.diskWorldTransform
+    }
+
+    var gazePlaneDiskOverlayText: String? {
+        guard isGazePlaneDiskVisible else { return nil }
+        return gazePlaneDiskConfirmation.statusText
+    }
+
+    var gazePlaneDiskCameraWorldPosition: SIMD3<Float>? {
+        guard isGazePlaneDiskVisible else { return nil }
+        return latestGazeRayOriginWorld
     }
 
     var practiceLocalizationStatusText: String? {
@@ -268,6 +339,27 @@ final class ARGuideViewModel {
             case .ready:
                 "定位成功，已开始引导。"
         }
+    }
+
+    func retryVirtualPianoPlacement() {
+        guard isVirtualPianoEnabled else { return }
+
+        practiceSessionViewModel.stopVirtualPianoInput()
+        practiceSessionViewModel.clearCalibration()
+        if let anchorID = appState.cachedVirtualPianoWorldAnchorID {
+            appState.cachedVirtualPianoWorldAnchorID = nil
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                try? await self.arTrackingService.worldTrackingProvider.removeAnchor(forID: anchorID)
+            }
+        }
+
+        gazePlaneDiskConfirmation.reset()
+        latestGazePlaneHit = nil
+
+        #if DEBUG && targetEnvironment(simulator)
+        applyVirtualPianoGeometryAtDefaultPositionForSimulator()
+        #endif
     }
 
     var canRetryPracticeLocalization: Bool {
@@ -467,6 +559,7 @@ final class ARGuideViewModel {
     func startHandTrackingIfNeeded() {
         guard handTrackingConsumerTask == nil else { return }
         arTrackingService.start()
+        startVirtualPianoGuidanceIfNeeded()
         let updates = arTrackingService.fingerTipUpdatesStream()
         handTrackingConsumerTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -477,12 +570,9 @@ final class ARGuideViewModel {
                         handleCalibrationHandUpdates()
                     case .practice:
                         if isVirtualPianoEnabled {
-                            let wasPlaced = virtualPianoPlacement.isPlaced
-                            virtualPianoPlacement.update(fingerTips: fingerTips)
-                            if wasPlaced == false, virtualPianoPlacement.isPlaced {
-                                applyVirtualPianoGeometry()
-                            }
-                            if virtualPianoPlacement.isPlaced {
+                            let nowUptime = ProcessInfo.processInfo.systemUptime
+                            updateGazePlaneDiskGuidance(fingerTips: fingerTips, nowUptime: nowUptime)
+                            if practiceSessionViewModel.keyboardGeometry != nil {
                                 _ = practiceSessionViewModel.handleFingerTipPositions(
                                     fingerTips,
                                     isVirtualPiano: true
@@ -496,32 +586,46 @@ final class ARGuideViewModel {
         }
     }
 
-    private func applyVirtualPianoGeometry() {
-        guard let worldFromKeyboard = virtualPianoPlacement.worldFromKeyboard else { return }
+    private func applyVirtualPianoGeometry(worldFromKeyboard: simd_float4x4) {
         let frame = KeyboardFrame(worldFromKeyboard: worldFromKeyboard)
         let service = VirtualPianoKeyGeometryService()
         if let geometry = service.generateKeyboardGeometry(from: frame) {
             practiceSessionViewModel.applyVirtualKeyboardGeometry(geometry)
+            if appState.cachedVirtualPianoWorldAnchorID == nil {
+                let anchor = WorldAnchor(originFromAnchorTransform: worldFromKeyboard)
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    do {
+                        try await self.arTrackingService.worldTrackingProvider.addAnchor(anchor)
+                        self.appState.cachedVirtualPianoWorldAnchorID = anchor.id
+                    } catch {
+                        // If we can't persist the anchor, the user can still play in this session.
+                    }
+                }
+            }
         }
     }
 
-    func syncVirtualPianoTransformFromOverlay(_ worldFromKeyboard: simd_float4x4?) {
-        guard isVirtualPianoEnabled else { return }
-        guard let worldFromKeyboard else { return }
-        guard virtualPianoPlacement.updatePlacedTransformIfNeeded(worldFromKeyboard) else { return }
+    #if DEBUG && targetEnvironment(simulator)
+    private func applyVirtualPianoGeometryAtDefaultPositionForSimulator() {
+        let xAxisWorld = SIMD3<Float>(1, 0, 0)
+        let yAxisWorld = SIMD3<Float>(0, 1, 0)
+        let zAxis = simd_normalize(simd_cross(xAxisWorld, yAxisWorld))
+        let xAxis = simd_normalize(simd_cross(yAxisWorld, zAxis))
 
-        let frame = KeyboardFrame(worldFromKeyboard: worldFromKeyboard)
+        let centerPoint = SIMD3<Float>(0, 1.0, -1.0)
+        let originWorld = centerPoint - xAxis * (VirtualPianoKeyGeometryService.totalKeyboardLengthMeters / 2)
 
-        if let existing = practiceSessionViewModel.keyboardGeometry, practiceSessionViewModel.calibration == nil {
-            practiceSessionViewModel.applyVirtualKeyboardGeometry(PianoKeyboardGeometry(frame: frame, keys: existing.keys))
-            return
-        }
+        let worldFromKeyboard = simd_float4x4(columns: (
+            SIMD4<Float>(xAxis, 0),
+            SIMD4<Float>(yAxisWorld, 0),
+            SIMD4<Float>(zAxis, 0),
+            SIMD4<Float>(originWorld, 1)
+        ))
 
-        let service = VirtualPianoKeyGeometryService()
-        if let geometry = service.generateKeyboardGeometry(from: frame) {
-            practiceSessionViewModel.applyVirtualKeyboardGeometry(geometry)
-        }
+        applyVirtualPianoGeometry(worldFromKeyboard: worldFromKeyboard)
     }
+    #endif
 
     private func handleCalibrationHandUpdates() {
         let nowUptime = ProcessInfo.processInfo.systemUptime
@@ -646,9 +750,100 @@ final class ARGuideViewModel {
         calibrationAnchorCaptureTask = nil
         handTrackingConsumerTask?.cancel()
         handTrackingConsumerTask = nil
+        stopVirtualPianoGuidance()
         calibrationSupportPollTask?.cancel()
         calibrationSupportPollTask = nil
         arTrackingService.stop()
+    }
+
+    private func startVirtualPianoGuidanceIfNeeded() {
+        guard appState.immersiveMode == .practice else { return }
+        guard isVirtualPianoEnabled else { return }
+        guard practiceSessionViewModel.keyboardGeometry == nil else { return }
+        guard appState.immersiveSpaceState == .open else { return }
+        guard virtualPianoGuidanceUpdateTask == nil else { return }
+
+        virtualPianoGuidanceUpdateTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            while Task.isCancelled == false {
+                let nowUptime = ProcessInfo.processInfo.systemUptime
+                updateGazePlaneDiskGuidance(fingerTips: arTrackingService.fingerTipPositions, nowUptime: nowUptime)
+                try? await Task.sleep(for: .milliseconds(33))
+            }
+        }
+    }
+
+    private func stopVirtualPianoGuidance() {
+        virtualPianoGuidanceUpdateTask?.cancel()
+        virtualPianoGuidanceUpdateTask = nil
+    }
+
+    private func updateGazePlaneDiskGuidance(
+        fingerTips: [String: SIMD3<Float>],
+        nowUptime: TimeInterval
+    ) {
+        guard isVirtualPianoEnabled else { return }
+
+        if
+            practiceSessionViewModel.keyboardGeometry == nil,
+            let anchorID = appState.cachedVirtualPianoWorldAnchorID,
+            let anchor = arTrackingService.worldAnchorsByID[anchorID],
+            anchor.isTracked
+        {
+            applyVirtualPianoGeometry(worldFromKeyboard: anchor.originFromAnchorTransform)
+            return
+        }
+
+        let deviceWorldTransform: simd_float4x4?
+        if
+            let deviceAnchor = arTrackingService.worldTrackingProvider.queryDeviceAnchor(atTimestamp: nowUptime),
+            deviceAnchor.isTracked
+        {
+            deviceWorldTransform = deviceAnchor.originFromAnchorTransform
+        } else {
+            deviceWorldTransform = nil
+        }
+
+        let ray: GazeRay? = {
+            guard let deviceWorldTransform else { return nil }
+            let origin = SIMD3<Float>(deviceWorldTransform.columns.3.x, deviceWorldTransform.columns.3.y, deviceWorldTransform.columns.3.z)
+            let forward = -SIMD3<Float>(deviceWorldTransform.columns.2.x, deviceWorldTransform.columns.2.y, deviceWorldTransform.columns.2.z)
+            return GazeRay(originWorld: origin, directionWorld: forward)
+        }()
+        latestGazeRayOriginWorld = ray?.originWorld
+
+        let planes: [DetectedPlane] = arTrackingService.planeAnchorsByID.values.map { anchor in
+            DetectedPlane(id: anchor.id, worldFromPlane: anchor.originFromAnchorTransform)
+        }
+
+        let hit = ray.flatMap { gazePlaneHitTestService.hitTest(ray: $0, planes: planes) }
+        latestGazePlaneHit = hit
+
+        gazePlaneDiskConfirmation.update(
+            planeHit: hit,
+            leftPalmWorld: fingerTips["left-palmCenter"],
+            rightPalmWorld: fingerTips["right-palmCenter"],
+            nowUptime: nowUptime
+        )
+
+        guard gazePlaneDiskConfirmation.isConfirmed else { return }
+        guard practiceSessionViewModel.keyboardGeometry == nil else { return }
+        guard let hit else { return }
+        guard let planeWorldFromAnchor = arTrackingService.planeAnchorsByID[hit.id]?.originFromAnchorTransform else { return }
+        guard let leftPalm = fingerTips["left-palmCenter"], let rightPalm = fingerTips["right-palmCenter"] else { return }
+
+        let handCenterWorld = (leftPalm + rightPalm) / 2
+        let n = simd_normalize(hit.planeNormalWorld)
+        let handCenterOnPlaneWorld = handCenterWorld - n * simd_dot(handCenterWorld - hit.hitPointWorld, n)
+
+        let poseService = VirtualKeyboardPoseService()
+        guard let worldFromKeyboard = poseService.computeWorldFromKeyboard(
+            planeWorldFromAnchor: planeWorldFromAnchor,
+            handCenterOnPlaneWorld: handCenterOnPlaneWorld,
+            deviceWorldTransform: deviceWorldTransform
+        ) else { return }
+
+        applyVirtualPianoGeometry(worldFromKeyboard: worldFromKeyboard)
     }
 
     var practiceProgressText: String {
