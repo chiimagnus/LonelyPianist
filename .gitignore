@@ -11,8 +11,11 @@ xcuserdata/
 .github/archived_features/
 
 .xcodebuildmcp/
+.superpowers/
 
 # Large local audio assets (SoundFonts)
 *.sf2
 
 .codex/
+
+不提交/
