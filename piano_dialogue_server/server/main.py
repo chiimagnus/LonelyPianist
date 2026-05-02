@@ -96,14 +96,6 @@ async def ws_endpoint(websocket: WebSocket) -> None:
 
                         torch_version = None
                         transformers_version = None
-                        try:
-                            import torch  # type: ignore
-                            import transformers  # type: ignore
-
-                            torch_version = getattr(torch, "__version__", None)
-                            transformers_version = getattr(transformers, "__version__", None)
-                        except Exception:
-                            pass
 
                         summary: dict[str, Any] = {
                             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime()),
