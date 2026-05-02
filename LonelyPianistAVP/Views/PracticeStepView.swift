@@ -20,167 +20,181 @@ struct PracticeStepView: View {
     @AppStorage("practiceAudioRecognitionDebugOverlayEnabled") private var isAudioDebugOverlayEnabled = false
 
     var body: some View {
-        PianoKeyboard88View(
-            highlightedMIDINotes: highlightedMIDINotes,
-            highlightOccurrenceID: viewModel.practiceSessionViewModel.currentPianoHighlightGuide?.id,
-            triggeredMIDINotes: triggeredMIDINotes,
-            fingeringByMIDINote: fingeringByMIDINote
-        )
-        .aspectRatio(PianoKeyboard88View.aspectRatio, contentMode: .fit)
-        .containerRelativeFrame(.horizontal, count: 10, span: 9, spacing: 0)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.vertical, 18)
-        .overlay {
-            ZStack(alignment: .topTrailing) {
-                Step3WindowGeometryHint()
-                    .frame(width: 0, height: 0)
-                if isAudioDebugOverlayEnabled {
-                    Step3AudioDebugOverlay(
-                        sessionViewModel: viewModel.practiceSessionViewModel,
-                        isAutoplayEnabled: isAutoplayEnabled
-                    )
-                    .padding(12)
+        practiceSurface
+            .containerRelativeFrame(.horizontal, count: 10, span: 9, spacing: 0)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.vertical, 18)
+            .overlay {
+                ZStack(alignment: .topTrailing) {
+                    Step3WindowGeometryHint()
+                        .frame(width: 0, height: 0)
+                    if isAudioDebugOverlayEnabled {
+                        Step3AudioDebugOverlay(
+                            sessionViewModel: viewModel.practiceSessionViewModel,
+                            isAutoplayEnabled: isAutoplayEnabled
+                        )
+                        .padding(12)
+                    }
                 }
             }
-        }
-        .toolbar {
-            ToolbarItemGroup(placement: .bottomOrnament) {
-                Button("返回", systemImage: "chevron.backward") {
-                    dismiss()
-                }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.roundedRectangle)
-                .hoverEffect()
-
-                if isAutoplayEnabled == false {
-                    Button(manualAdvanceMode.nextButtonTitle, systemImage: "forward.fill") {
-                        viewModel.skipStep()
+            .toolbar {
+                ToolbarItemGroup(placement: .bottomOrnament) {
+                    Button("返回", systemImage: "chevron.backward") {
+                        dismiss()
                     }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.roundedRectangle)
                     .hoverEffect()
-                    .disabled(viewModel.hasImportedSteps == false || viewModel.practiceSessionViewModel
-                        .state == .completed)
 
-                    Button(manualAdvanceMode.replayButtonTitle, systemImage: "speaker.wave.2.fill") {
-                        if manualAdvanceMode == .measure {
-                            viewModel.replayCurrentPracticeUnit()
-                        } else {
-                            viewModel.playCurrentPracticeStepSound()
+                    if isAutoplayEnabled == false {
+                        Button(manualAdvanceMode.nextButtonTitle, systemImage: "forward.fill") {
+                            viewModel.skipStep()
+                        }
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.roundedRectangle)
+                        .hoverEffect()
+                        .disabled(viewModel.hasImportedSteps == false || viewModel.practiceSessionViewModel
+                            .state == .completed)
+
+                        Button(manualAdvanceMode.replayButtonTitle, systemImage: "speaker.wave.2.fill") {
+                            if manualAdvanceMode == .measure {
+                                viewModel.replayCurrentPracticeUnit()
+                            } else {
+                                viewModel.playCurrentPracticeStepSound()
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.roundedRectangle)
+                        .hoverEffect()
+                        .disabled(
+                            viewModel.practiceSessionViewModel.state == .ready ||
+                                viewModel.practiceSessionViewModel.currentStep == nil
+                        )
+                    }
+
+                    Toggle("自动播放", isOn: $isAutoplayEnabled)
+                        .toggleStyle(.button)
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.roundedRectangle)
+                        .hoverEffect()
+
+                    Button("设置", systemImage: "gearshape") {
+                        isSettingsPopoverPresented.toggle()
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.roundedRectangle)
+                    .hoverEffect()
+                    .popover(isPresented: $isSettingsPopoverPresented) {
+                        PracticeSettingsView(virtualPianoEnabled: $isVirtualPianoEnabled)
+                    }
+
+                    if isAutoplayEnabled {
+                        Text(viewModel.practiceSessionViewModel.isSustainPedalDown ? "Pedal ↓" : "Pedal ↑")
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Text("进度 \(viewModel.practiceProgressText)")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+
+                    if isAutoplayEnabled == false, isVirtualPianoEnabled == false {
+                        Button("定位", systemImage: "scope") {
+                            isLocalizationPopoverPresented.toggle()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .buttonBorderShape(.roundedRectangle)
+                        .hoverEffect()
+                        .popover(isPresented: $isLocalizationPopoverPresented) {
+                            localizationPopover
                         }
                     }
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.roundedRectangle)
-                    .hoverEffect()
-                    .disabled(
-                        viewModel.practiceSessionViewModel.state == .ready ||
-                            viewModel.practiceSessionViewModel.currentStep == nil
+                }
+            }
+            .buttonBorderShape(.roundedRectangle)
+            .onAppear {
+                isStepVisible = true
+                isVirtualPianoEnabled = false
+                guard hasRequestedImmersiveOpen == false else { return }
+                hasRequestedImmersiveOpen = true
+
+                Task { @MainActor in
+                    viewModel.practiceSessionViewModel.refreshAudioRecognitionFromSettings()
+                    viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
+                    await viewModel.enterPracticeStep(
+                        using: openImmersiveSpace,
+                        dismissImmersiveSpace: dismissImmersiveSpace
                     )
-                }
 
-                Toggle("自动播放", isOn: $isAutoplayEnabled)
-                    .toggleStyle(.button)
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.roundedRectangle)
-                    .hoverEffect()
-
-                Button("设置", systemImage: "gearshape") {
-                    isSettingsPopoverPresented.toggle()
-                }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.roundedRectangle)
-                .hoverEffect()
-                .popover(isPresented: $isSettingsPopoverPresented) {
-                    PracticeSettingsView(virtualPianoEnabled: $isVirtualPianoEnabled)
-                }
-
-                if isAutoplayEnabled {
-                    Text(viewModel.practiceSessionViewModel.isSustainPedalDown ? "Pedal ↓" : "Pedal ↑")
-                        .foregroundStyle(.secondary)
-                }
-
-                Text("进度 \(viewModel.practiceProgressText)")
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-
-                if isAutoplayEnabled == false, isVirtualPianoEnabled == false {
-                    Button("定位", systemImage: "scope") {
-                        isLocalizationPopoverPresented.toggle()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.roundedRectangle)
-                    .hoverEffect()
-                    .popover(isPresented: $isLocalizationPopoverPresented) {
-                        localizationPopover
+                    if isStepVisible == false {
+                        await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)
+                        await viewModel.recoverImmersiveStateIfStuck()
                     }
                 }
             }
-        }
-        .buttonBorderShape(.roundedRectangle)
-        .onAppear {
-            isStepVisible = true
-            isVirtualPianoEnabled = false
-            guard hasRequestedImmersiveOpen == false else { return }
-            hasRequestedImmersiveOpen = true
-
-            Task { @MainActor in
-                viewModel.practiceSessionViewModel.refreshAudioRecognitionFromSettings()
+            .onChange(of: isVirtualPianoEnabled) {
+                viewModel.setPracticeVirtualPianoEnabled(isVirtualPianoEnabled)
+                guard isVirtualPianoEnabled else { return }
+                Task { @MainActor in
+                    await viewModel.enterPracticeStep(
+                        using: openImmersiveSpace,
+                        dismissImmersiveSpace: dismissImmersiveSpace
+                    )
+                }
+            }
+            .onChange(of: isAutoplayEnabled) {
                 viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
-                await viewModel.enterPracticeStep(
-                    using: openImmersiveSpace,
-                    dismissImmersiveSpace: dismissImmersiveSpace
-                )
-
-                if isStepVisible == false {
+            }
+            .onChange(of: viewModel.practiceSessionViewModel.audioErrorMessage) {
+                isAudioErrorAlertPresented = viewModel.practiceSessionViewModel.audioErrorMessage != nil
+            }
+            .alert("音频不可用", isPresented: $isAudioErrorAlertPresented) {
+                Button("知道了") {
+                    viewModel.practiceSessionViewModel.clearAudioError()
+                }
+            } message: {
+                Text(viewModel.practiceSessionViewModel.audioErrorMessage ?? "")
+            }
+            .onChange(of: viewModel.practiceSessionViewModel.autoplayErrorMessage) {
+                isAutoplayErrorAlertPresented = viewModel.practiceSessionViewModel.autoplayErrorMessage != nil
+            }
+            .alert("无法自动播放", isPresented: $isAutoplayErrorAlertPresented) {
+                Button("知道了") {
+                    viewModel.practiceSessionViewModel.clearAutoplayError()
+                }
+            } message: {
+                Text(viewModel.practiceSessionViewModel.autoplayErrorMessage ?? "")
+            }
+            .onDisappear {
+                isStepVisible = false
+                isVirtualPianoEnabled = false
+                hasRequestedImmersiveOpen = false
+                viewModel.setPracticeAutoplayEnabled(false)
+                viewModel.setPracticeVirtualPianoEnabled(false)
+                viewModel.resetPracticeLocalizationState()
+                Task { @MainActor in
                     await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)
                     await viewModel.recoverImmersiveStateIfStuck()
                 }
             }
-        }
-        .onChange(of: isVirtualPianoEnabled) {
-            viewModel.setPracticeVirtualPianoEnabled(isVirtualPianoEnabled)
-            guard isVirtualPianoEnabled else { return }
-            Task { @MainActor in
-                await viewModel.enterPracticeStep(
-                    using: openImmersiveSpace,
-                    dismissImmersiveSpace: dismissImmersiveSpace
-                )
-            }
-        }
-        .onChange(of: isAutoplayEnabled) {
-            viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
-        }
-        .onChange(of: viewModel.practiceSessionViewModel.audioErrorMessage) {
-            isAudioErrorAlertPresented = viewModel.practiceSessionViewModel.audioErrorMessage != nil
-        }
-        .alert("音频不可用", isPresented: $isAudioErrorAlertPresented) {
-            Button("知道了") {
-                viewModel.practiceSessionViewModel.clearAudioError()
-            }
-        } message: {
-            Text(viewModel.practiceSessionViewModel.audioErrorMessage ?? "")
-        }
-        .onChange(of: viewModel.practiceSessionViewModel.autoplayErrorMessage) {
-            isAutoplayErrorAlertPresented = viewModel.practiceSessionViewModel.autoplayErrorMessage != nil
-        }
-        .alert("无法自动播放", isPresented: $isAutoplayErrorAlertPresented) {
-            Button("知道了") {
-                viewModel.practiceSessionViewModel.clearAutoplayError()
-            }
-        } message: {
-            Text(viewModel.practiceSessionViewModel.autoplayErrorMessage ?? "")
-        }
-        .onDisappear {
-            isStepVisible = false
-            isVirtualPianoEnabled = false
-            hasRequestedImmersiveOpen = false
-            viewModel.setPracticeAutoplayEnabled(false)
-            viewModel.setPracticeVirtualPianoEnabled(false)
-            viewModel.resetPracticeLocalizationState()
-            Task { @MainActor in
-                await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)
-                await viewModel.recoverImmersiveStateIfStuck()
-            }
+    }
+
+    private var practiceSurface: some View {
+        VStack(spacing: 21) {
+            ScrollingStaffNotationView(
+                guides: viewModel.practiceSessionViewModel.highlightGuides,
+                currentGuide: viewModel.practiceSessionViewModel.currentPianoHighlightGuide,
+                measureSpans: viewModel.practiceSessionViewModel.notationMeasureSpans,
+                context: viewModel.practiceSessionViewModel.currentNotationContext
+            )
+            .frame(height: 180)
+
+            PianoKeyboard88View(
+                highlightedMIDINotes: highlightedMIDINotes,
+                highlightOccurrenceID: viewModel.practiceSessionViewModel.currentPianoHighlightGuide?.id,
+                triggeredMIDINotes: triggeredMIDINotes,
+                fingeringByMIDINote: fingeringByMIDINote
+            )
+            .aspectRatio(PianoKeyboard88View.aspectRatio, contentMode: .fit)
         }
     }
 
@@ -299,8 +313,8 @@ private final class WindowGeometryHintViewController: UIViewController {
         capturePreviousWindowSizeIfNeeded()
 
         let preferences = UIWindowScene.GeometryPreferences.Vision(
-            size: CGSize(width: 1600, height: 400),
-            minimumSize: CGSize(width: 1200, height: 320),
+            size: CGSize(width: 1600, height: 620),
+            minimumSize: CGSize(width: 1200, height: 520),
             maximumSize: nil,
             resizingRestrictions: nil
         )
