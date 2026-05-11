@@ -36,7 +36,6 @@ final class LonelyPianistViewModel {
     var bluetoothMIDIConnectionState: BluetoothMIDIConnectionState = .idle
     var bluetoothMIDIScanMode: BluetoothMIDIScanMode = .midiServiceFiltered
     var bluetoothMIDIDiscoveredPeripherals: [BluetoothMIDIPeripheral] = []
-    var selectedBluetoothMIDIPeripheralID: String?
     var rememberLastBluetoothMIDIDevice = false
     private var liveRecordingTakeID: UUID?
     private var recordingClockTask: Task<Void, Never>?
@@ -187,7 +186,6 @@ final class LonelyPianistViewModel {
     }
 
     func connectBluetoothMIDI(id: String) {
-        selectedBluetoothMIDIPeripheralID = id
         bluetoothMIDIConnectionService.connect(id: id)
     }
 
@@ -608,5 +606,4 @@ final class LonelyPianistViewModel {
         return "Take \(formatter.string(from: date))"
     }
 
-    // Rule normalization removed (mappings are no longer supported).
 }
