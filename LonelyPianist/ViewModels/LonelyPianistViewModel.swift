@@ -37,6 +37,7 @@ final class LonelyPianistViewModel {
     var bluetoothMIDIScanMode: BluetoothMIDIScanMode = .midiServiceFiltered
     var bluetoothMIDIDiscoveredPeripherals: [BluetoothMIDIPeripheral] = []
     var selectedBluetoothMIDIPeripheralID: String?
+    var rememberLastBluetoothMIDIDevice = false
     private var liveRecordingTakeID: UUID?
     private var recordingClockTask: Task<Void, Never>?
 
@@ -47,6 +48,7 @@ final class LonelyPianistViewModel {
     private let recordingService: RecordingServiceProtocol
     private let playbackService: RoutableMIDIPlaybackServiceProtocol
     private let bluetoothMIDIConnectionService: BluetoothMIDIConnectionServiceProtocol
+    private let settings: AppSettingsProtocol
     private var playbackClockTask: Task<Void, Never>?
     private var pendingSeekTask: Task<Void, Never>?
     private var playbackStartedAt: Date?
@@ -57,13 +59,17 @@ final class LonelyPianistViewModel {
         recordingRepository: RecordingTakeRepositoryProtocol,
         recordingService: RecordingServiceProtocol,
         playbackService: RoutableMIDIPlaybackServiceProtocol,
-        bluetoothMIDIConnectionService: BluetoothMIDIConnectionServiceProtocol
+        bluetoothMIDIConnectionService: BluetoothMIDIConnectionServiceProtocol,
+        settings: AppSettingsProtocol
     ) {
         self.midiInputService = midiInputService
         self.recordingRepository = recordingRepository
         self.recordingService = recordingService
         self.playbackService = playbackService
         self.bluetoothMIDIConnectionService = bluetoothMIDIConnectionService
+        self.settings = settings
+
+        rememberLastBluetoothMIDIDevice = settings.rememberLastBluetoothMIDIDevice
 
         bindServiceCallbacks()
     }
@@ -104,6 +110,7 @@ final class LonelyPianistViewModel {
         do {
             try reloadTakes(preserveSelectedID: nil)
             refreshPlaybackOutputs()
+            bluetoothMIDIConnectionService.attemptAutoConnect()
         } catch {
             statusMessage = "Init failed: \(error.localizedDescription)"
             log(title: "Init Failed", detail: error.localizedDescription)
@@ -217,6 +224,11 @@ final class LonelyPianistViewModel {
           "bluetoothState": "\(String(describing: bluetoothMIDIConnectionState))"
         }
         """
+    }
+
+    func setRememberLastBluetoothMIDIDevice(_ enabled: Bool) {
+        rememberLastBluetoothMIDIDevice = enabled
+        settings.rememberLastBluetoothMIDIDevice = enabled
     }
 
     func startRecordingTake() {

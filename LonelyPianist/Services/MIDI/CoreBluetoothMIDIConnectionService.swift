@@ -29,6 +29,8 @@ final class CoreBluetoothMIDIConnectionService: NSObject, BluetoothMIDIConnectio
 
     private let logger = Logger(subsystem: "com.chiimagnus.LonelyPianist", category: "BluetoothMIDI")
 
+    private let settings: AppSettingsProtocol
+
     private lazy var central: CBCentralManager = {
         CBCentralManager(delegate: self, queue: .main)
     }()
@@ -42,8 +44,10 @@ final class CoreBluetoothMIDIConnectionService: NSObject, BluetoothMIDIConnectio
     private var lastError: String?
     private var lastActivationStatus: OSStatus?
     private var lastDisconnectStatus: OSStatus?
+    private var pendingAutoConnect = false
 
-    override init() {
+    init(settings: AppSettingsProtocol) {
+        self.settings = settings
         super.init()
         _ = central
     }
@@ -149,6 +153,45 @@ final class CoreBluetoothMIDIConnectionService: NSObject, BluetoothMIDIConnectio
         disconnect(id: id, setIdleWhenDone: true)
     }
 
+    func attemptAutoConnect() {
+        guard settings.rememberLastBluetoothMIDIDevice else { return }
+        guard let id = settings.lastBluetoothMIDIPeripheralID else { return }
+
+        guard CBManager.authorization == .allowedAlways else { return }
+        guard central.state == .poweredOn else {
+            pendingAutoConnect = true
+            return
+        }
+
+        guard let uuid = UUID(uuidString: id) else {
+            logger.warning("Invalid saved peripheral UUID: \(id, privacy: .public)")
+            return
+        }
+
+        guard connectionState == .idle || connectionState == .readyToConnect else { return }
+
+        attemptAutoConnectNow(id: id, uuid: uuid)
+    }
+
+    private func attemptAutoConnectNow(id: String, uuid: UUID) {
+        pendingAutoConnect = false
+        targetPeripheralID = id
+        connectionState = .connecting(id: id)
+        logger.info("Auto connect attempt: \(id, privacy: .public)")
+
+        let peripherals = central.retrievePeripherals(withIdentifiers: [uuid])
+        guard let peripheral = peripherals.first else {
+            lastError = "Auto connect failed: peripheral not found"
+            connectionState = .idle
+            return
+        }
+
+        peripheralsByID[id] = peripheral
+        activePeripheral = peripheral
+        peripheral.delegate = self
+        central.connect(peripheral, options: nil)
+    }
+
     private func clearDiscoveredPeripherals() {
         peripheralsByID.removeAll(keepingCapacity: false)
         discoveredPeripherals.removeAll(keepingCapacity: false)
@@ -205,6 +248,10 @@ final class CoreBluetoothMIDIConnectionService: NSObject, BluetoothMIDIConnectio
         let sourcesAfter = MIDIGetNumberOfSources()
         logger.info("Activate ok. sources before=\(sourcesBefore, privacy: .public) after=\(sourcesAfter, privacy: .public)")
         connectionState = .activated(id: id)
+
+        if settings.rememberLastBluetoothMIDIDevice {
+            settings.lastBluetoothMIDIPeripheralID = id
+        }
 
         logger.info("Disconnect CoreBluetooth connection for \(id, privacy: .public) (CoreMIDI takes over)")
         central.cancelPeripheralConnection(peripheral)
@@ -272,6 +319,9 @@ extension CoreBluetoothMIDIConnectionService: CBCentralManagerDelegate {
             case .poweredOn:
                 if connectionState == .poweredOff {
                     connectionState = .idle
+                }
+                if pendingAutoConnect {
+                    attemptAutoConnect()
                 }
             case .poweredOff:
                 connectionState = .poweredOff

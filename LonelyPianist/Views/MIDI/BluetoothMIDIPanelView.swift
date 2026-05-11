@@ -47,6 +47,15 @@ struct BluetoothMIDIPanelView: View {
 
     private var scanControls: some View {
         HStack(spacing: 12) {
+            Toggle(
+                "Remember Last Device",
+                isOn: Binding(
+                    get: { viewModel.rememberLastBluetoothMIDIDevice },
+                    set: { viewModel.setRememberLastBluetoothMIDIDevice($0) }
+                )
+            )
+            .toggleStyle(.switch)
+
             Picker("Scan Mode", selection: $viewModel.bluetoothMIDIScanMode) {
                 Text("MIDI Service Filtered").tag(BluetoothMIDIScanMode.midiServiceFiltered)
                 Text("All Devices (Verify After Connect)").tag(BluetoothMIDIScanMode.allDevices)

@@ -41,6 +41,7 @@ final class BluetoothMIDIConnectionServiceMock: BluetoothMIDIConnectionServicePr
     private(set) var stopScanCallCount = 0
     private(set) var connectCalls: [String] = []
     private(set) var disconnectCalls: [String] = []
+    private(set) var attemptAutoConnectCallCount = 0
 
     func startScan(mode: BluetoothMIDIScanMode) {
         startScanCalls.append(mode)
@@ -63,6 +64,10 @@ final class BluetoothMIDIConnectionServiceMock: BluetoothMIDIConnectionServicePr
         disconnectCalls.append(id)
         mockLastDisconnectStatus = 0
         connectionState = .disconnecting(id: id)
+    }
+
+    func attemptAutoConnect() {
+        attemptAutoConnectCallCount += 1
     }
 
     func setState(_ state: BluetoothMIDIConnectionState) {

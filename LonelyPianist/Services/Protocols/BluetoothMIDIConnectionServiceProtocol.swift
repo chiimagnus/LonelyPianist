@@ -48,4 +48,6 @@ protocol BluetoothMIDIConnectionServiceProtocol: AnyObject {
 
     func connect(id: String)
     func disconnect(id: String)
+
+    func attemptAutoConnect()
 }
