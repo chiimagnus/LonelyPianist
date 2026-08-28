@@ -1,0 +1,19 @@
+name: Feature request
+description: Suggest an idea
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What should it do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why does it belong in HappyPianist?
+      description: HappyPianist is focused on piano practice in Apple Vision Pro. Tell us why this improves the practice or learning experience.
+    validations:
+      required: true

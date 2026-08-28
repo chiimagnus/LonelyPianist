@@ -1,0 +1,57 @@
+name: Bug report
+description: Report something that isn't working in HappyPianist
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: checkboxes
+    id: existing-search
+    attributes:
+      label: Existing issues
+      options:
+        - label: I searched open and closed issues and didn't find this already reported
+          required: false
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      placeholder: |
+        What you did, what you expected, and what happened instead.
+        A short recording beats a paragraph.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro-steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or recording
+      description: Drag and drop images or a recording here. Optional but speeds up triage.
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: HappyPianist version or commit
+      placeholder: 0.1.0 or abc1234
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: visionOS + device + input method
+      placeholder: visionOS 26.0 · Apple Vision Pro · Bluetooth MIDI
+    validations:
+      required: true
